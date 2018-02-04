@@ -93,7 +93,7 @@ public class VerifyTest
 
 
     @Test
-    public void testVerifyCorrect() throws IOException
+    public void testVerifyCorrect()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -114,7 +114,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testVerifyCounterCorrect() throws IOException
+    public void testVerifyCounterCorrect()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -135,7 +135,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testExtendedVerifyCorrect() throws IOException
+    public void testExtendedVerifyCorrect()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -156,7 +156,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testExtendedVerifyCounterCorrect() throws IOException
+    public void testExtendedVerifyCounterCorrect()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -177,7 +177,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testVerifyCorrectUncompressed() throws IOException
+    public void testVerifyCorrectUncompressed()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -198,7 +198,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testVerifyCounterCorrectUncompressed() throws IOException
+    public void testVerifyCounterCorrectUncompressed()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -219,7 +219,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testExtendedVerifyCorrectUncompressed() throws IOException
+    public void testExtendedVerifyCorrectUncompressed()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);
@@ -240,7 +240,7 @@ public class VerifyTest
     }
 
     @Test
-    public void testExtendedVerifyCounterCorrectUncompressed() throws IOException
+    public void testExtendedVerifyCounterCorrectUncompressed()
     {
         CompactionManager.instance.disableAutoCompaction();
         Keyspace keyspace = Keyspace.open(KEYSPACE);

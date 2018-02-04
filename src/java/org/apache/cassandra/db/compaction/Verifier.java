@@ -64,12 +64,12 @@ public class Verifier implements Closeable
     private final OutputHandler outputHandler;
     private FileDigestValidator validator;
 
-    public Verifier(ColumnFamilyStore cfs, SSTableReader sstable, boolean isOffline) throws IOException
+    public Verifier(ColumnFamilyStore cfs, SSTableReader sstable, boolean isOffline)
     {
         this(cfs, sstable, new OutputHandler.LogOutput(), isOffline);
     }
 
-    public Verifier(ColumnFamilyStore cfs, SSTableReader sstable, OutputHandler outputHandler, boolean isOffline) throws IOException
+    public Verifier(ColumnFamilyStore cfs, SSTableReader sstable, OutputHandler outputHandler, boolean isOffline)
     {
         this.cfs = cfs;
         this.sstable = sstable;
@@ -85,7 +85,7 @@ public class Verifier implements Closeable
         this.verifyInfo = new VerifyInfo(dataFile, sstable);
     }
 
-    public void verify(boolean extended) throws IOException
+    public void verify(boolean extended)
     {
         long rowStart = 0;
 
@@ -247,15 +247,24 @@ public class Verifier implements Closeable
             throw (Error) th;
     }
 
-    private void markAndThrow() throws IOException
+    private void markAndThrow()
     {
         markAndThrow(true);
     }
 
-    private void markAndThrow(boolean mutateRepaired) throws IOException
+    private void markAndThrow(boolean mutateRepaired)
     {
         if (mutateRepaired) // if we are able to mutate repaired flag, an incremental repair should be enough
-            sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, ActiveRepairService.UNREPAIRED_SSTABLE);
+        {
+            try
+            {
+                sstable.descriptor.getMetadataSerializer().mutateRepairedAt(sstable.descriptor, ActiveRepairService.UNREPAIRED_SSTABLE);
+            }
+            catch(IOException ioe)
+            {
+                outputHandler.output("Error mutating repairedAt for SSTable " +  sstable.getFilename() + ", as part of markAndThrow");
+            }
+        }
         throw new CorruptSSTableException(new Exception(String.format("Invalid SSTable %s, please force %srepair", sstable.getFilename(), mutateRepaired ? "" : "a full ")), sstable.getFilename());
     }
 
