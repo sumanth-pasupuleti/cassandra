@@ -3,6 +3,7 @@
  * Untangle RepairMessage sub-hierarchy of messages, use new messaging (more) correctly (CASSANDRA-15163)
  * Add `allocate_tokens_for_local_replication_factor` option for token allocation (CASSANDRA-15260)
  * Add Alibaba Cloud Platform snitch (CASSANDRA-15092)
+ * Upgrade Guava to 27, pick up driver 3.6.0 in place of SNAPSHOT 3.4.0 (CASSANDRA-14655)
 
 
 4.0-alpha1
