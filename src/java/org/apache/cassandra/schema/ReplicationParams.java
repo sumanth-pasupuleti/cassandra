@@ -87,6 +87,13 @@ public final class ReplicationParams
         String className = options.remove(CLASS);
 
         Class<? extends AbstractReplicationStrategy> klass = AbstractReplicationStrategy.getClass(className);
+
+        // add default replication factor if missing
+        if (klass == SimpleStrategy.class || klass == NetworkTopologyStrategy.class)
+        {
+            options.putIfAbsent("replication_factor", Integer.toString(DatabaseDescriptor.getDefaultKeyspaceRF()));
+        }
+
         AbstractReplicationStrategy.prepareReplicationStrategyOptions(klass, options, defaults);
 
         return new ReplicationParams(klass, options);

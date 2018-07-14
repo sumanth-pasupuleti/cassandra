@@ -2728,4 +2728,33 @@ public class DatabaseDescriptor
     {
         conf.report_unconfirmed_repaired_data_mismatches = enabled;
     }
+
+    public static int getDefaultKeyspaceRF() { return conf.default_keyspace_rf; }
+
+    public static void setDefaultKeyspaceRF(int value) throws ConfigurationException
+    {
+        if (value < 1)
+        {
+            throw new ConfigurationException("default_keyspace_rf cannot be less than 1");
+        }
+
+        if (value < getMinimumKeyspaceRF())
+        {
+            throw new ConfigurationException(String.format("default_keyspace_rf cannot be less than minimum_keyspace_rf (%d)", getMinimumKeyspaceRF()));
+        }
+
+        conf.default_keyspace_rf = value;
+    }
+
+    public static int getMinimumKeyspaceRF() { return conf.minimum_keyspace_rf; }
+
+    public static void setMinimumKeyspaceRF(int value) throws ConfigurationException
+    {
+        if (value < 0)
+        {
+            throw new ConfigurationException("minimum_keyspace_rf cannot be negative");
+        }
+
+        conf.minimum_keyspace_rf = value;
+    }
 }
