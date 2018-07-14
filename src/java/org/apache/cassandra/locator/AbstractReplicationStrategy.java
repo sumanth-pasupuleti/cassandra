@@ -28,6 +28,7 @@ import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.WriteType;
@@ -308,7 +309,13 @@ public abstract class AbstractReplicationStrategy
     {
         try
         {
-            if (Integer.parseInt(rf) < 0)
+            Integer parsedRf = Integer.parseInt(rf);
+            if (parsedRf < DatabaseDescriptor.getMinimumKeyspaceRF())
+            {
+                throw new ConfigurationException(String.format("Replication factor %s cannot be less than minimum_keyspace_rf (%d)", rf, DatabaseDescriptor.getMinimumKeyspaceRF()));
+            }
+
+            if (parsedRf < 0)
             {
                 throw new ConfigurationException("Replication factor must be non-negative; found " + rf);
             }

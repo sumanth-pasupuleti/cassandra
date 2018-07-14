@@ -271,4 +271,23 @@ public class DatabaseDescriptorTest
         DatabaseDescriptor.applyAddressConfig(testConfig);
 
     }
+
+    @Test (expected = ConfigurationException.class)
+    public void testInvalidSub1DefaultRFs() throws ConfigurationException
+    {
+        DatabaseDescriptor.setDefaultKeyspaceRF(0);
+    }
+
+    @Test (expected = ConfigurationException.class)
+    public void testInvalidSub0MinimumRFs() throws ConfigurationException
+    {
+        DatabaseDescriptor.setMinimumKeyspaceRF(-1);
+    }
+
+    @Test (expected = ConfigurationException.class)
+    public void testDefaultRfLessThanMinRF()
+    {
+        DatabaseDescriptor.setMinimumKeyspaceRF(2);
+        DatabaseDescriptor.setDefaultKeyspaceRF(1);
+    }
 }
