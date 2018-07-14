@@ -441,6 +441,11 @@ public class Config
      */
     public volatile boolean report_unconfirmed_repaired_data_mismatches = false;
 
+    // Default and minimum keyspace replication factors allow validation of newly created keyspaces
+    // and good defaults if no replication factor is provided by the user
+    public int default_keyspace_rf = 1;
+    public int minimum_keyspace_rf = 0;
+
     /**
      * @deprecated migrate to {@link DatabaseDescriptor#isClientInitialized()}
      */
