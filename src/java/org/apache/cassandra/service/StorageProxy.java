@@ -1455,7 +1455,7 @@ public class StorageProxy implements StorageProxyMBean
                     for (InetAddress endpoint : exec.getContactedReplicas())
                     {
                         Tracing.trace("Enqueuing full data read to {}", endpoint);
-                        MessagingService.instance().sendRR(message, endpoint, repairHandler);
+                        MessagingService.instance().sendRRWithFailure(message, endpoint, repairHandler);
                     }
                 }
             }
@@ -1790,7 +1790,7 @@ public class StorageProxy implements StorageProxyMBean
                         for (InetAddress endpoint : filteredEndpoints)
                         {
                             Tracing.trace("Enqueuing request to {}", endpoint);
-                            MessagingService.instance().sendRR(message, endpoint, handler);
+                            MessagingService.instance().sendRRWithFailure(message, endpoint, handler);
                         }
                     }
                     scanHandlers.add(Pair.create(nodeCmd, handler));
