@@ -345,7 +345,7 @@ public class CoordinatorSession extends ConsistentSession
                 hasFailure.set(true);
                 fail();
             }
-        });
+        }, MoreExecutors.directExecutor());
 
         return proposeFuture;
     }

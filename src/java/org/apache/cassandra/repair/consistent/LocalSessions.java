@@ -47,6 +47,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.cassandra.locator.RangesAtEndpoint;
 import org.slf4j.Logger;
@@ -631,7 +632,7 @@ public class LocalSessions
                 failSession(sessionID, false);
                 executor.shutdown();
             }
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     public void maybeSetRepairing(UUID sessionID)
