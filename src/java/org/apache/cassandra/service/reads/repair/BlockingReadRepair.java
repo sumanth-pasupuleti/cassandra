@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,7 +186,7 @@ public class BlockingReadRepair implements ReadRepair, RepairListener
                 {
                     setException(t);
                 }
-            });
+            }, MoreExecutors.directExecutor());
         }
     }
 

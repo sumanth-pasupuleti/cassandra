@@ -308,7 +308,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
 
                 // failure is handled at root of job chain
                 public void onFailure(Throwable t) {}
-            });
+            }, MoreExecutors.directExecutor());
             currentTask = nextTask;
         }
         // start running tasks
@@ -365,7 +365,7 @@ public class RepairJob extends AbstractFuture<RepairResult> implements Runnable
 
                     // failure is handled at root of job chain
                     public void onFailure(Throwable t) {}
-                });
+                }, MoreExecutors.directExecutor());
                 currentTask = nextTask;
             }
             // start running tasks

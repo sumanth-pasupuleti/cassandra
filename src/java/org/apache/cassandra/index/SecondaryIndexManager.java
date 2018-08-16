@@ -485,7 +485,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
                                        builtIndexes.addAll(groupedIndexes);
                                        build.set(o);
                                    }
-                               });
+                               }, MoreExecutors.directExecutor());
                                futures.add(build);
                            });
 
@@ -1439,7 +1439,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
         if (null != task)
         {
             ListenableFuture<?> f = blockingExecutor.submit(task);
-            if (callback != null) Futures.addCallback(f, callback);
+            if (callback != null) Futures.addCallback(f, callback, MoreExecutors.directExecutor());
             FBUtilities.waitOnFuture(f);
         }
     }
@@ -1459,7 +1459,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
                              if (null != task)
                              {
                                  ListenableFuture<?> f = blockingExecutor.submit(task);
-                                 if (callback != null) Futures.addCallback(f, callback);
+                                 if (callback != null) Futures.addCallback(f, callback, MoreExecutors.directExecutor());
                                  waitFor.add(f);
                              }
                          });
