@@ -59,7 +59,6 @@ public class LoaderOptions
     public static final String THROTTLE_MBITS = "throttle";
     public static final String INTER_DC_THROTTLE_MBITS = "inter-dc-throttle";
     public static final String TOOL_NAME = "sstableloader";
-    public static final String ALLOW_SERVER_PORT_DISCOVERY_OPTION = "server-port-discovery";
     public static final String TARGET_KEYSPACE = "target-keyspace";
 
     /* client encryption options */
@@ -89,7 +88,6 @@ public class LoaderOptions
     public final EncryptionOptions.ServerEncryptionOptions serverEncOptions;
     public final Set<InetSocketAddress> hosts;
     public final Set<InetAddressAndPort> ignores;
-    public final boolean allowServerPortDiscovery;
     public final String targetKeyspace;
 
     LoaderOptions(Builder builder)
@@ -110,7 +108,6 @@ public class LoaderOptions
         connectionsPerHost = builder.connectionsPerHost;
         serverEncOptions = builder.serverEncOptions;
         hosts = builder.hosts;
-        allowServerPortDiscovery = builder.allowServerPortDiscovery;
         ignores = builder.ignores;
         targetKeyspace = builder.targetKeyspace;
     }
@@ -137,7 +134,6 @@ public class LoaderOptions
         Set<InetAddress> ignoresArg = new HashSet<>();
         Set<InetSocketAddress> hosts = new HashSet<>();
         Set<InetAddressAndPort> ignores = new HashSet<>();
-        boolean allowServerPortDiscovery;
         String targetKeyspace;
 
         Builder()
@@ -307,12 +303,6 @@ public class LoaderOptions
             return this;
         }
 
-        public Builder allowServerPortDiscovery(boolean allowServerPortDiscovery)
-        {
-            this.allowServerPortDiscovery = allowServerPortDiscovery;
-            return this;
-        }
-
         public Builder parseArgs(String cmdArgs[])
         {
             CommandLineParser parser = new GnuParser();
@@ -359,7 +349,6 @@ public class LoaderOptions
 
                 verbose = cmd.hasOption(VERBOSE_OPTION);
                 noProgress = cmd.hasOption(NOPROGRESS_OPTION);
-                allowServerPortDiscovery = cmd.hasOption(ALLOW_SERVER_PORT_DISCOVERY_OPTION);
 
                 if (cmd.hasOption(USER_OPTION))
                 {
@@ -627,7 +616,6 @@ public class LoaderOptions
         options.addOption("st", SSL_STORE_TYPE, "STORE-TYPE", "Client SSL: type of store");
         options.addOption("ciphers", SSL_CIPHER_SUITES, "CIPHER-SUITES", "Client SSL: comma-separated list of encryption suites to use");
         options.addOption("f", CONFIG_PATH, "path to config file", "cassandra.yaml file path for streaming throughput and client/server SSL.");
-        options.addOption("spd", ALLOW_SERVER_PORT_DISCOVERY_OPTION, "allow server port discovery", "Use ports published by server to decide how to connect. With SSL requires StartTLS to be used.");
         options.addOption("k", TARGET_KEYSPACE, "target keyspace name", "target keyspace name");
         return options;
     }
