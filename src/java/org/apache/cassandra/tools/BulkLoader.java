@@ -62,8 +62,7 @@ public class BulkLoader
                         options.authProvider,
                         options.sslStoragePort,
                         options.serverEncOptions,
-                        buildSSLOptions(options.clientEncOptions),
-                        options.allowServerPortDiscovery),
+                        buildSSLOptions(options.clientEncOptions)),
                         handler,
                         options.connectionsPerHost,
                         options.targetKeyspace);
@@ -280,10 +279,9 @@ public class BulkLoader
                               AuthProvider authProvider,
                               int sslStoragePort,
                               EncryptionOptions.ServerEncryptionOptions serverEncryptionOptions,
-                              SSLOptions sslOptions,
-                              boolean allowServerPortDiscovery)
+                              SSLOptions sslOptions)
         {
-            super(hosts, nativePort, storagePort, authProvider, sslOptions, allowServerPortDiscovery);
+            super(hosts, nativePort, storagePort, authProvider, sslOptions);
             this.sslStoragePort = sslStoragePort;
             serverEncOptions = serverEncryptionOptions;
         }
