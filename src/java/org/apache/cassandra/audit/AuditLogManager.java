@@ -33,6 +33,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.CQLStatement;
 import org.apache.cassandra.cql3.QueryHandler;
 import org.apache.cassandra.cql3.QueryOptions;
+import org.apache.cassandra.db.virtual.VirtualKeyspaceRegistry;
 import org.apache.cassandra.exceptions.AuthenticationException;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.UnauthorizedException;
@@ -126,13 +127,18 @@ public class AuditLogManager
         return SchemaConstants.isLocalSystemKeyspace(keyspaceName);
     }
 
+    private boolean isVirtualKeyspace(String keyspaceName)
+    {
+        return VirtualKeyspaceRegistry.instance.getKeyspaceNullable(keyspaceName) != null;
+    }
+
     /**
      * Logs AuditLogEntry to standard audit logger
      * @param logEntry AuditLogEntry to be logged
      */
     private void logAuditLoggerEntry(AuditLogEntry logEntry)
     {
-        if ((logEntry.getKeyspace() == null || !isSystemKeyspace(logEntry.getKeyspace()))
+        if ((logEntry.getKeyspace() == null || (!isSystemKeyspace(logEntry.getKeyspace()) && !isVirtualKeyspace(logEntry.getKeyspace())))
             && !filter.isFiltered(logEntry))
         {
             auditLogger.log(logEntry);
