@@ -767,6 +767,9 @@ public class DatabaseDescriptor
         if (conf.otc_coalescing_enough_coalesced_messages <= 0)
             throw new ConfigurationException("otc_coalescing_enough_coalesced_messages must be positive", false);
 
+        if (conf.blacklisted_partitions_cache_refresh_period_in_ms <= 0)
+            throw new ConfigurationException("blacklisted_partitions_cache_refresh_period_in_ms must be positive", false);
+
         validateMaxConcurrentAutoUpgradeTasksConf(conf.max_concurrent_automatic_sstable_upgrades);
     }
 
@@ -2263,6 +2266,36 @@ public class DatabaseDescriptor
     public static long getCounterCacheSizeInMB()
     {
         return counterCacheSizeInMB;
+    }
+
+    public static long getBlackListedPartitionsCacheSizeWarnThresholdInMB()
+    {
+        return conf.blacklisted_partitions_cache_size_warn_threshold_in_mb;
+    }
+
+    public static void setBlackListedPartitionsCacheSizeWarnThresholdInMB(long val)
+    {
+        if (val < 0)
+        {
+            throw new ConfigurationException("blacklisted_partitions_cache_size_warn_threshold_in_mb cannot be less than 0", false);
+        }
+
+        conf.blacklisted_partitions_cache_size_warn_threshold_in_mb = val;
+    }
+
+    public static long getBlacklistedPartitionsCacheRefreshInMs()
+    {
+        return conf.blacklisted_partitions_cache_refresh_period_in_ms;
+    }
+
+    public static void setBlacklistedPartitionsCacheRefreshInMs(int val)
+    {
+        if (val < 0)
+        {
+            throw new ConfigurationException("blacklisted_partitions_cache_refresh_period_in_ms must be positive", false);
+        }
+
+        conf.blacklisted_partitions_cache_refresh_period_in_ms = val;
     }
 
     public static void setRowCacheKeysToSave(int rowCacheKeysToSave)

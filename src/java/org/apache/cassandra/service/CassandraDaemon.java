@@ -45,6 +45,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.cache.BlacklistedPartitionCache;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.db.virtual.SystemViewsKeyspace;
 import org.apache.cassandra.db.virtual.VirtualKeyspaceRegistry;
@@ -425,6 +426,8 @@ public class CassandraDaemon
 
         // Native transport
         nativeTransportService = new NativeTransportService();
+
+        BlacklistedPartitionCache.instance.refreshCache();
 
         completeSetup();
     }

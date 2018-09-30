@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.audit.AuditLogManager;
 import org.apache.cassandra.batchlog.Batch;
 import org.apache.cassandra.batchlog.BatchlogManager;
+import org.apache.cassandra.cache.BlacklistedPartitionCache;
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.concurrent.StageManager;
 import org.apache.cassandra.service.reads.AbstractReadExecutor;
@@ -1568,9 +1569,21 @@ public class StorageProxy implements StorageProxyMBean
             throw new IsBootstrappingException();
         }
 
+        //check for presence of blacklisted partitions, and reject if present
+        if (BlacklistedPartitionCache.instance.size() > 0)
+        {
+            for (SinglePartitionReadQuery query : group.queries)
+            {
+                if (BlacklistedPartitionCache.instance.contains(query.metadata().id, query.partitionKey()))
+                {
+                    throw new InvalidRequestException("Cannot perform READ on a blacklisted partition");
+                }
+            }
+        }
+
         return consistencyLevel.isSerialConsistency()
-             ? readWithPaxos(group, consistencyLevel, state, queryStartNanoTime)
-             : readRegular(group, consistencyLevel, queryStartNanoTime);
+               ? readWithPaxos(group, consistencyLevel, state, queryStartNanoTime)
+               : readRegular(group, consistencyLevel, queryStartNanoTime);
     }
 
     private static PartitionIterator readWithPaxos(SinglePartitionReadCommand.Group group, ConsistencyLevel consistencyLevel, ClientState state, long queryStartNanoTime)
