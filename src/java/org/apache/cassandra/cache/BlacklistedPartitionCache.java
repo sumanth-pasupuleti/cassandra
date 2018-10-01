@@ -54,16 +54,15 @@ public class BlacklistedPartitionCache
         if (DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB() > 0)
         {
             //calculate cache size
-            //TODO: Revisit below logic
             long cacheSize = 0;
             for (BlacklistedPartition blacklistedPartition : blacklistedPartitions.get())
             {
                 cacheSize += blacklistedPartition.unsharedHeapSize();
             }
 
-            if (cacheSize / (1024 * 1024) > DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB())
+            if (cacheSize / (1024 * 1024) >= DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB())
             {
-                logger.warn(String.format("BlacklistedPartition cache size (%d) exceeds threshold size (%d)", cacheSize / (1024 * 1024), DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB()));
+                logger.warn(String.format("BlacklistedPartition cache size (%d) MB exceeds threshold size (%d) MB", cacheSize / (1024 * 1024), DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB()));
             }
         }
     }
