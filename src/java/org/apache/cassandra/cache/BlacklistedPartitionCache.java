@@ -20,7 +20,6 @@ package org.apache.cassandra.cache;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,31 +30,37 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.repair.SystemDistributedKeyspace;
 import org.apache.cassandra.schema.TableId;
 
+/**
+ * Cache that loads blacklisted partitions from system_distributed.blacklisted_partitions table
+ */
 public class BlacklistedPartitionCache
 {
-    private static final Logger logger = LoggerFactory.getLogger(BlacklistedPartitionCache.class);
-    private final AtomicReference<Set<BlacklistedPartition>> blacklistedPartitions = new AtomicReference<>();
-
     public final static BlacklistedPartitionCache instance = new BlacklistedPartitionCache();
+    private static final Logger logger = LoggerFactory.getLogger(BlacklistedPartitionCache.class);
+    private volatile Set<BlacklistedPartition> blacklistedPartitions;
 
     public BlacklistedPartitionCache()
     {
-        //setup a periodic refresh
+        // setup a periodic refresh
         ScheduledExecutors.optionalTasks.scheduleWithFixedDelay(this::refreshCache,
-                                                                DatabaseDescriptor.getBlacklistedPartitionsCacheRefreshInMs(),
-                                                                DatabaseDescriptor.getBlacklistedPartitionsCacheRefreshInMs(),
-                                                                TimeUnit.MILLISECONDS);
+                                                                DatabaseDescriptor.getBlacklistedPartitionsCacheRefreshInSec(),
+                                                                DatabaseDescriptor.getBlacklistedPartitionsCacheRefreshInSec(),
+                                                                TimeUnit.SECONDS);
     }
 
+    /**
+     * Loads blacklisted partitions from system_distributed.blacklisted partitions table.
+     * Also logs a warning if cache size exceeds the set threshold.
+     */
     public void refreshCache()
     {
-        this.blacklistedPartitions.set(SystemDistributedKeyspace.getBlacklistedPartitions());
+        this.blacklistedPartitions = SystemDistributedKeyspace.getBlacklistedPartitions();
 
+        // attempt to compute cache size only if there is a warn threshold configured
         if (DatabaseDescriptor.getBlackListedPartitionsCacheSizeWarnThresholdInMB() > 0)
         {
-            //calculate cache size
             long cacheSize = 0;
-            for (BlacklistedPartition blacklistedPartition : blacklistedPartitions.get())
+            for (BlacklistedPartition blacklistedPartition : blacklistedPartitions)
             {
                 cacheSize += blacklistedPartition.unsharedHeapSize();
             }
@@ -67,13 +72,25 @@ public class BlacklistedPartitionCache
         }
     }
 
+    /**
+     * indicates if a pair of tableId and key exist in the cache
+     *
+     * @param tableId TableId - the unique identifier of a table
+     * @param key     DecoratedKey
+     * @return true if <tableId, key> exist in cache
+     */
     public boolean contains(TableId tableId, DecoratedKey key)
     {
-        return blacklistedPartitions.get().contains(new BlacklistedPartition(tableId, key));
+        return blacklistedPartitions.contains(new BlacklistedPartition(tableId, key));
     }
 
+    /**
+     * count of blacklisted partitions
+     *
+     * @return
+     */
     public int size()
     {
-        return blacklistedPartitions.get().size();
+        return blacklistedPartitions.size();
     }
 }

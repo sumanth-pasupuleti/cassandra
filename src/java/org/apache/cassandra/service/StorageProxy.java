@@ -1569,7 +1569,7 @@ public class StorageProxy implements StorageProxyMBean
             throw new IsBootstrappingException();
         }
 
-        //check for presence of blacklisted partitions, and reject if present
+        // check if the partition in question is blacklisted; if yes, reject READ operation
         if (BlacklistedPartitionCache.instance.size() > 0)
         {
             for (SinglePartitionReadQuery query : group.queries)

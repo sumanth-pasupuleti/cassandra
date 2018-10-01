@@ -320,6 +320,10 @@ public final class SystemDistributedKeyspace
         forceBlockingFlush(VIEW_BUILD_STATUS);
     }
 
+    /**
+     * Reads blacklisted partitions from system_distributed.blacklisted_partitions table
+     * @return
+     */
     public static Set<BlacklistedPartition> getBlacklistedPartitions()
     {
         String query = "SELECT keyspace_name, columnfamily_name, partition_key FROM %s.%s";
@@ -344,6 +348,8 @@ public final class SystemDistributedKeyspace
             }
             catch (IllegalArgumentException ex)
             {
+                // exception could arise incase of invalid keyspace/table. We shall continue to try reading other
+                // blacklisted partitions
                 logger.warn("Exception parsing blacklisted partition. {}", ex.getMessage());
             }
         }

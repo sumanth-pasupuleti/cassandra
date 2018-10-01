@@ -21,7 +21,6 @@ package org.apache.cassandra.cache;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.Schema;
@@ -31,12 +30,14 @@ import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.ObjectSizes;
 
+/**
+ * Class to represent a blacklisted partition
+ */
 public class BlacklistedPartition implements IMeasurableMemory
 {
+    private static final long EMPTY_SIZE = ObjectSizes.measure(new BlacklistedPartition(null, new byte[0]));
     public final byte[] key;
     public final TableId tableId;
-
-    private static final long EMPTY_SIZE = ObjectSizes.measure(new BlacklistedPartition(null, new byte[0]));
 
     public BlacklistedPartition(TableId tableId, DecoratedKey key)
     {
@@ -44,15 +45,24 @@ public class BlacklistedPartition implements IMeasurableMemory
         this.key = ByteBufferUtil.getArray(key.getKey());
     }
 
-    public BlacklistedPartition(TableId tableId, byte[] key)
+    private BlacklistedPartition(TableId tableId, byte[] key)
     {
         this.tableId = tableId;
         this.key = key;
     }
 
-
+    /**
+     * Creates an instance of BlacklistedPartition for a given keyspace, table and partition key
+     *
+     * @param keyspace
+     * @param table
+     * @param key
+     * @throws IllegalArgumentException
+     */
     public BlacklistedPartition(String keyspace, String table, String key) throws IllegalArgumentException
     {
+        // Determine tableId from keyspace and table parameters. If tableId cannot be determined due to invalid
+        // parameters, throw an exception
         KeyspaceMetadata ksMetaData = Schema.instance.getKeyspaceMetadata(keyspace);
         if (ksMetaData == null)
         {
@@ -70,6 +80,11 @@ public class BlacklistedPartition implements IMeasurableMemory
         this.key = keyAsBytes.array();
     }
 
+    /**
+     * returns size in bytes of BlacklistedPartition instance
+     *
+     * @return
+     */
     public long unsharedHeapSize()
     {
         return EMPTY_SIZE + ObjectSizes.sizeOf(tableId.toString()) + ObjectSizes.sizeOfArray(key);

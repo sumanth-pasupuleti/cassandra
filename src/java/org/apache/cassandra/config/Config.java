@@ -258,7 +258,7 @@ public class Config
     public volatile int counter_cache_keys_to_save = Integer.MAX_VALUE;
 
     public long blacklisted_partitions_cache_size_warn_threshold_in_mb;
-    public long blacklisted_partitions_cache_refresh_period_in_ms = 600000;
+    public int blacklisted_partitions_cache_refresh_period_in_sec = 600; //10 minutes
 
     private static boolean isClientMode = false;
 
