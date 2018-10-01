@@ -50,12 +50,6 @@ public class BlacklistedPartition implements IMeasurableMemory
         this.key = key;
     }
 
-    public BlacklistedPartition(TableMetadata metadata, DecoratedKey key)
-    {
-        this.tableId = metadata.id;
-        this.key = ByteBufferUtil.getArray(key.getKey());
-        assert this.key != null;
-    }
 
     public BlacklistedPartition(String keyspace, String table, String key) throws IllegalArgumentException
     {
@@ -74,27 +68,6 @@ public class BlacklistedPartition implements IMeasurableMemory
         ByteBuffer keyAsBytes = metadata.partitionKeyType.fromString(key);
         this.tableId = metadata.id;
         this.key = keyAsBytes.array();
-    }
-
-    public BlacklistedPartition(String keyspace, String table, ByteBuffer key)
-    {
-        String testKey = "2:US";
-        ColumnFamilyStore cfs = ColumnFamilyStore.getIfExists(keyspace, table);
-        assert cfs != null;
-        this.tableId = cfs.metadata.id;
-        //TODO: verify key.array()
-//        this.key = key.array();
-        this.key = cfs.metadata.get().partitionKeyType.fromString(testKey).array();
-        assert this.key != null;
-    }
-
-    public BlacklistedPartition(String keyspace, String table, DecoratedKey key)
-    {
-        ColumnFamilyStore cfs = ColumnFamilyStore.getIfExists(keyspace, table);
-        assert cfs != null;
-        this.tableId = cfs.metadata.id;
-        this.key = ByteBufferUtil.getArray(key.getKey());
-        assert this.key != null;
     }
 
     public long unsharedHeapSize()

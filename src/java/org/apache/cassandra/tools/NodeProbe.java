@@ -56,6 +56,7 @@ import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 import org.apache.cassandra.batchlog.BatchlogManager;
 import org.apache.cassandra.batchlog.BatchlogManagerMBean;
+import org.apache.cassandra.cache.BlacklistedPartitionCache;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ColumnFamilyStoreMBean;
 import org.apache.cassandra.db.HintedHandOffManagerMBean;
@@ -1761,6 +1762,8 @@ public class NodeProbe implements AutoCloseable
     {
         ssProxy.disableNativeTransportOldProtocolVersions();
     }
+
+    public void refreshBlacklistedPartitionsCache() { BlacklistedPartitionCache.instance.refreshCache(); }
 }
 
 class ColumnFamilyStoreMBeanIterator implements Iterator<Map.Entry<String, ColumnFamilyStoreMBean>>
