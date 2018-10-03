@@ -36,7 +36,7 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
     @BeforeClass
     public static void setUp() throws Throwable
     {
-        //since system_distributed keyspace is required
+        // since system_distributed keyspace is required
         requireNetwork();
     }
 
