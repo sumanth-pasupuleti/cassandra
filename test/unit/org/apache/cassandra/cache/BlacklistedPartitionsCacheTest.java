@@ -19,7 +19,7 @@
 package org.apache.cassandra.cache;
 
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.datastax.driver.core.PreparedStatement;
@@ -29,32 +29,15 @@ import com.datastax.driver.core.exceptions.InvalidQueryException;
 import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.repair.SystemDistributedKeyspace;
 import org.apache.cassandra.schema.SchemaConstants;
-import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 public class BlacklistedPartitionsCacheTest extends CQLTester
 {
-    private static String table1;
-    private static String table2;
-
-    @Before
-    public void setUp() throws Throwable
+    @BeforeClass
+    public static void setUp() throws Throwable
     {
-        //since we need system_distributed keyspace
-//        requireNetwork();
-        //TODO: Figure out issue around requireNetwork and replace below ss initServer with requireNetwork
-        StorageService.instance.initServer();
-
-        // create a test table
-        table1 = createTable("CREATE TABLE %s (id int PRIMARY KEY, v1 text, v2 text)");
-        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table1), 1, "v11", "v21");
-        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table1), 2, "v12", "v22");
-        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table1), 3, "v13", "v23");
-
-        // create another test table
-        table2 = createTable("CREATE TABLE %s (id int PRIMARY KEY, v1 text, v2 text)");
-        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table2), 1, "v11", "v21");
-        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table2), 2, "v12", "v22");
+        //since system_distributed keyspace is required
+        requireNetwork();
     }
 
     @Test
@@ -76,7 +59,10 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
     @Test(expected = InvalidQueryException.class)
     public void testBlacklistingPartitionInSimpleTable() throws Throwable
     {
-        // blacklist key 2 from table1
+        // create a test table
+        String table1 = createAndPopulateTable();
+
+        // blacklist key2 from table1
         execute(String.format("INSERT INTO %s.%s (keyspace_name, columnfamily_name, partition_key) VALUES (?, ?, ?)", SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, SystemDistributedKeyspace.BLACKLISTED_PARTITIONS), KEYSPACE, table1, "2");
 
         // refresh blacklist cache
@@ -97,6 +83,9 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
     @Test(expected = InvalidQueryException.class)
     public void testBlacklistingPartitionInSimpleTableAndUsingINClause() throws Throwable
     {
+        // create a test table
+        String table1 = createAndPopulateTable();
+
         // blacklist key 2 from table1
         execute(String.format("INSERT INTO %s.%s (keyspace_name, columnfamily_name, partition_key) VALUES (?, ?, ?)", SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, SystemDistributedKeyspace.BLACKLISTED_PARTITIONS), KEYSPACE, table1, "2");
 
@@ -113,6 +102,12 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
     @Test
     public void testQueryingBlacklistedPartitionUnrelatedTable() throws Throwable
     {
+        // create a test table
+        String table1 = createAndPopulateTable();
+
+        // create another test table
+        String table2 = createAndPopulateTable();
+
         // refresh blacklist cache
         BlacklistedPartitionCache.instance.refreshCache();
 
@@ -168,5 +163,13 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
         // querying blacklisted partition on the table should throw an InvalidQueryException
         PreparedStatement pstmt = session.prepare("SELECT * FROM " + KEYSPACE + '.' + currentTable() + " WHERE key1 = ? AND key2 = ? AND key3 = ? AND cc = ?");
         session.execute(pstmt.bind(ByteBufferUtil.hexToBytes("12345F"), "k12:colon", 1, "cc1"));
+    }
+
+    private String createAndPopulateTable() throws Throwable
+    {
+        String table = createTable("CREATE TABLE %s (id int PRIMARY KEY, v1 text, v2 text)");
+        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table), 1, "v11", "v21");
+        execute(String.format("INSERT INTO %s.%s (id, v1, v2) VALUES (?, ?, ?)", CQLTester.KEYSPACE, table), 2, "v12", "v22");
+        return table;
     }
 }

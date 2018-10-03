@@ -81,7 +81,7 @@ public class BlacklistedPartitionCache
      */
     public boolean contains(TableId tableId, DecoratedKey key)
     {
-        return blacklistedPartitions.contains(new BlacklistedPartition(tableId, key));
+        return null != blacklistedPartitions && blacklistedPartitions.contains(new BlacklistedPartition(tableId, key));
     }
 
     /**
@@ -91,6 +91,6 @@ public class BlacklistedPartitionCache
      */
     public int size()
     {
-        return blacklistedPartitions.size();
+        return null == blacklistedPartitions ? 0 : blacklistedPartitions.size();
     }
 }
