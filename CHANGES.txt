@@ -1,4 +1,13 @@
 4.0
+ * Transient->Full range movements mishandle consistency level upgrade (CASSANDRA-14759)
+ * ReplicaCollection follow-up (CASSANDRA-14726)
+ * Transient node receives full data requests (CASSANDRA-14762)
+ * Enable snapshot artifacts publish (CASSANDRA-12704)
+ * Introduce RangesAtEndpoint.unwrap to simplify StreamSession.addTransferRanges (CASSANDRA-14770)
+ * LOCAL_QUORUM may speculate to non-local nodes, resulting in Timeout instead of Unavailable (CASSANDRA-14735)
+ * Avoid creating empty compaction tasks after truncate (CASSANDRA-14780)
+ * Fail incremental repair prepare phase if it encounters sstables from un-finalized sessions (CASSANDRA-14763)
+ * Add a check for receiving digest response from transient node (CASSANDRA-14750)
  * Fail query on transient replica if coordinator only expects full data (CASSANDRA-14704)
  * Remove mentions of transient replication from repair path (CASSANDRA-14698)
  * Fix handleRepairStatusChangedNotification to remove first then add (CASSANDRA-14720)
@@ -312,6 +321,9 @@
 
 3.11.4
 Merged from 3.0:
+ * Avoid calling iter.next() in a loop when notifying indexers about range tombstones (CASSANDRA-14794)
+ * Fix purging semi-expired RT boundaries in reversed iterators (CASSANDRA-14672)
+ * DESC order reads can fail to return the last Unfiltered in the partition (CASSANDRA-14766)
  * Fix corrupted collection deletions for dropped columns in 3.0 <-> 2.{1,2} messages (CASSANDRA-14568)
  * Fix corrupted static collection deletions in 3.0 <-> 2.{1,2} messages (CASSANDRA-14568)
  * Handle failures in parallelAllSSTableOperation (cleanup/upgradesstables/etc) (CASSANDRA-14657)

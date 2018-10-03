@@ -25,6 +25,7 @@ import java.util.function.LongPredicate;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hasher;
@@ -49,6 +50,8 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.locator.Replica;
+import org.apache.cassandra.locator.ReplicaCollection;
 import org.apache.cassandra.metrics.TableMetrics;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.schema.IndexMetadata;
@@ -62,6 +65,9 @@ import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.HashingUtils;
+
+import static com.google.common.collect.Iterables.any;
+import static com.google.common.collect.Iterables.filter;
 
 /**
  * General interface for storage-engine read commands (common to both range and
@@ -142,6 +148,9 @@ public abstract class ReadCommand extends AbstractReadQuery
                           IndexMetadata index)
     {
         super(metadata, nowInSec, columnFilter, rowFilter, limits);
+        if (acceptsTransient && isDigestQuery)
+            throw new IllegalArgumentException("Attempted to issue a digest response to transient replica");
+
         this.kind = kind;
         this.isDigestQuery = isDigestQuery;
         this.digestVersion = digestVersion;
@@ -308,10 +317,49 @@ public abstract class ReadCommand extends AbstractReadQuery
     public abstract ReadCommand copy();
 
     /**
+     * Returns a copy of this command with acceptsTransient set to true.
+     */
+    public ReadCommand copyAsTransientQuery(Replica replica)
+    {
+        Preconditions.checkArgument(replica.isTransient(),
+                                    "Can't make a transient request on a full replica: " + replica);
+        return copyAsTransientQuery();
+    }
+
+    /**
+     * Returns a copy of this command with acceptsTransient set to true.
+     */
+    public ReadCommand copyAsTransientQuery(Iterable<Replica> replicas)
+    {
+        if (any(replicas, Replica::isFull))
+            throw new IllegalArgumentException("Can't make a transient request on full replicas: " + Iterables.toString(filter(replicas, Replica::isFull)));
+        return copyAsTransientQuery();
+    }
+
+    protected abstract ReadCommand copyAsTransientQuery();
+
+    /**
      * Returns a copy of this command with isDigestQuery set to true.
      */
-    public abstract ReadCommand copyAsDigestQuery();
-    public abstract ReadCommand copyAsTransientQuery();
+    public ReadCommand copyAsDigestQuery(Replica replica)
+    {
+        Preconditions.checkArgument(replica.isFull(),
+                                    "Can't make a digest request on a transient replica " + replica);
+        return copyAsDigestQuery();
+    }
+
+    /**
+     * Returns a copy of this command with isDigestQuery set to true.
+     */
+    public ReadCommand copyAsDigestQuery(Iterable<Replica> replicas)
+    {
+        if (any(replicas, Replica::isTransient))
+            throw new IllegalArgumentException("Can't make a digest request on a transient replica " + Iterables.toString(filter(replicas, Replica::isTransient)));
+
+        return copyAsDigestQuery();
+    }
+
+    protected abstract ReadCommand copyAsDigestQuery();
 
     protected abstract UnfilteredPartitionIterator queryStorage(ColumnFamilyStore cfs, ReadExecutionController executionController);
 

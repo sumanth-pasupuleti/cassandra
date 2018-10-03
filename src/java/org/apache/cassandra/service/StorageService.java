@@ -47,7 +47,7 @@ import com.google.common.collect.*;
 import com.google.common.util.concurrent.*;
 
 import org.apache.cassandra.dht.RangeStreamer.FetchReplica;
-import org.apache.cassandra.locator.ReplicaCollection.Mutable.Conflict;
+import org.apache.cassandra.locator.ReplicaCollection.Builder.Conflict;
 import org.apache.commons.lang3.StringUtils;
 
 import org.slf4j.Logger;
@@ -236,7 +236,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private Collection<Token> bootstrapTokens = null;
 
     // true when keeping strict consistency while bootstrapping
-    private static final boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
+    public static final boolean useStrictConsistency = Boolean.parseBoolean(System.getProperty("cassandra.consistent.rangemovement", "true"));
     private static final boolean allowSimultaneousMoves = Boolean.parseBoolean(System.getProperty("cassandra.consistent.simultaneousmoves.allow","false"));
     private static final boolean joinRing = Boolean.parseBoolean(System.getProperty("cassandra.join_ring", "true"));
     private boolean replacing;
@@ -1060,8 +1060,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     public void gossipSnitchInfo()
     {
         IEndpointSnitch snitch = DatabaseDescriptor.getEndpointSnitch();
-        String dc = snitch.getDatacenter(FBUtilities.getBroadcastAddressAndPort());
-        String rack = snitch.getRack(FBUtilities.getBroadcastAddressAndPort());
+        String dc = snitch.getLocalDatacenter();
+        String rack = snitch.getLocalRack();
         Gossiper.instance.addLocalApplicationState(ApplicationState.DC, StorageService.instance.valueFactory.datacenter(dc));
         Gossiper.instance.addLocalApplicationState(ApplicationState.RACK, StorageService.instance.valueFactory.rack(rack));
     }
@@ -1227,7 +1227,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                                        streamStateStore,
                                                        false,
                                                        DatabaseDescriptor.getStreamingConnectionsPerHost());
-            streamer.addSourceFilter(new RangeStreamer.FailureDetectorSourceFilter(FailureDetector.instance));
             if (sourceDc != null)
                 streamer.addSourceFilter(new RangeStreamer.SingleDatacenterFilter(DatabaseDescriptor.getEndpointSnitch(), sourceDc));
 
@@ -1836,7 +1835,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     private boolean isLocalDC(InetAddressAndPort targetHost)
     {
         String remoteDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(targetHost);
-        String localDC = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
+        String localDC = DatabaseDescriptor.getEndpointSnitch().getLocalDatacenter();
         return remoteDC.equals(localDC);
     }
 
@@ -2976,7 +2975,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (temp.isMember(endpoint))
             temp.removeEndpoint(endpoint);
 
-        EndpointsByReplica.Mutable changedRanges = new EndpointsByReplica.Mutable();
+        EndpointsByReplica.Builder changedRanges = new EndpointsByReplica.Builder();
 
         // Go through the ranges and for each range check who will be
         // storing replicas for these ranges when the leaving endpoint
@@ -3012,7 +3011,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             changedRanges.putAll(replica, newReplicaEndpoints, Conflict.NONE);
         }
 
-        return changedRanges.asImmutableView();
+        return changedRanges.build();
     }
 
     public void onJoin(InetAddressAndPort endpoint, EndpointState epState)
@@ -3718,7 +3717,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
             else
             {
-                Iterables.addAll(option.getRanges(), getLocalReplicas(keyspace).filter(Replica::isFull).ranges());
+                Iterables.addAll(option.getRanges(), getLocalReplicas(keyspace).onlyFull().ranges());
             }
         }
         if (option.getRanges().isEmpty() || Keyspace.open(keyspace).getReplicationStrategy().getReplicationFactor().allReplicas < 2)
@@ -4074,7 +4073,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         {
             PendingRangeCalculatorService.instance.blockUntilFinished();
 
-            String dc = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
+            String dc = DatabaseDescriptor.getEndpointSnitch().getLocalDatacenter();
 
             if (operationMode != Mode.LEAVING) // If we're already decommissioning there is no point checking RF/pending ranges
             {
@@ -4314,208 +4313,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         if (logger.isDebugEnabled())
             logger.debug("Successfully moved to new token {}", getLocalTokens().iterator().next());
-    }
-
-    @VisibleForTesting
-    public static class RangeRelocator
-    {
-        private final StreamPlan streamPlan = new StreamPlan(StreamOperation.RELOCATION);
-        private final InetAddressAndPort localAddress = FBUtilities.getBroadcastAddressAndPort();
-        private final TokenMetadata tokenMetaCloneAllSettled;
-        // clone to avoid concurrent modification in calculateNaturalReplicas
-        private final TokenMetadata tokenMetaClone;
-        private final Collection<Token> tokens;
-        private final List<String> keyspaceNames;
-
-
-        private RangeRelocator(Collection<Token> tokens, List<String> keyspaceNames, TokenMetadata tmd)
-        {
-            this.tokens = tokens;
-            this.keyspaceNames = keyspaceNames;
-            this.tokenMetaCloneAllSettled = tmd.cloneAfterAllSettled();
-            // clone to avoid concurrent modification in calculateNaturalReplicas
-            this.tokenMetaClone = tmd.cloneOnlyTokenMap();
-        }
-
-        @VisibleForTesting
-        public RangeRelocator()
-        {
-            this.tokens = null;
-            this.keyspaceNames = null;
-            this.tokenMetaCloneAllSettled = null;
-            this.tokenMetaClone = null;
-        }
-
-        /**
-         * Wrapper that supplies accessors to the real implementations of the various dependencies for this method
-         */
-        private Multimap<InetAddressAndPort, FetchReplica> calculateRangesToFetchWithPreferredEndpoints(AbstractReplicationStrategy strategy, RangesAtEndpoint fetchRanges, String keyspace)
-        {
-            EndpointsByReplica preferredEndpoints =
-            RangeStreamer.calculateRangesToFetchWithPreferredEndpoints((address, replicas) -> DatabaseDescriptor.getEndpointSnitch().sortedByProximity(address, replicas),
-                                                                       strategy,
-                                                                       fetchRanges,
-                                                                       useStrictConsistency,
-                                                                       tokenMetaClone,
-                                                                       tokenMetaCloneAllSettled,
-                                                                       RangeStreamer.ALIVE_PREDICATE,
-                                                                       keyspace,
-                                                                       Collections.emptyList());
-            return RangeStreamer.convertPreferredEndpointsToWorkMap(preferredEndpoints);
-        }
-
-        /**
-         * calculating endpoints to stream current ranges to if needed
-         * in some situations node will handle current ranges as part of the new ranges
-         **/
-        public RangesByEndpoint calculateRangesToStreamWithEndpoints(RangesAtEndpoint streamRanges,
-                                                                     AbstractReplicationStrategy strat,
-                                                                     TokenMetadata tmdBefore,
-                                                                     TokenMetadata tmdAfter)
-        {
-            RangesByEndpoint.Mutable endpointRanges = new RangesByEndpoint.Mutable();
-            for (Replica toStream : streamRanges)
-            {
-                //If the range we are sending is full only send it to the new full replica
-                //There will also be a new transient replica we need to send the data to, but not
-                //the repaired data
-                EndpointsForRange currentEndpoints = strat.calculateNaturalReplicas(toStream.range().right, tmdBefore);
-                EndpointsForRange newEndpoints = strat.calculateNaturalReplicas(toStream.range().right, tmdAfter);
-                logger.debug("Need to stream {}, current endpoints {}, new endpoints {}", toStream, currentEndpoints, newEndpoints);
-
-                for (Replica current : currentEndpoints)
-                {
-                    for (Replica updated : newEndpoints)
-                    {
-                        if (current.endpoint().equals(updated.endpoint()))
-                        {
-                            //Nothing to do
-                            if (current.equals(updated))
-                                break;
-
-                            //In these two (really three) cases the existing data is sufficient and we should subtract whatever is already replicated
-                            if (current.isFull() == updated.isFull() || current.isFull())
-                            {
-                                //First subtract what we already have
-                                Set<Range<Token>> subsToStream = toStream.range().subtract(current.range());
-                                //Now we only stream what is still replicated
-                                subsToStream = subsToStream.stream().flatMap(range -> range.intersectionWith(updated.range()).stream()).collect(Collectors.toSet());
-                                for (Range<Token> subrange : subsToStream)
-                                {
-                                    //Only stream what intersects with what is in the new world
-                                    Set<Range<Token>> intersections = subrange.intersectionWith(updated.range());
-                                    for (Range<Token> intersection : intersections)
-                                    {
-                                        endpointRanges.put(updated.endpoint(), updated.decorateSubrange(intersection));
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                for (Range<Token> intersection : toStream.range().intersectionWith(updated.range()))
-                                {
-                                    endpointRanges.put(updated.endpoint(), updated.decorateSubrange(intersection));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (Replica updated : newEndpoints)
-                {
-                    if (!currentEndpoints.byEndpoint().containsKey(updated.endpoint()))
-                    {
-                        // Completely new range for this endpoint
-                        if (toStream.isTransient() && updated.isFull())
-                        {
-                            throw new AssertionError(String.format("Need to stream %s, but only have %s which is transient and not full", updated, toStream));
-                        }
-                        for (Range<Token> intersection : updated.range().intersectionWith(toStream.range()))
-                        {
-                            endpointRanges.put(updated.endpoint(), updated.decorateSubrange(intersection));
-                        }
-                    }
-                }
-            }
-            return endpointRanges.asImmutableView();
-        }
-
-        private void calculateToFromStreams()
-        {
-            logger.debug("Current tmd " + tokenMetaClone);
-            logger.debug("Updated tmd " + tokenMetaCloneAllSettled);
-            for (String keyspace : keyspaceNames)
-            {
-                // replication strategy of the current keyspace
-                AbstractReplicationStrategy strategy = Keyspace.open(keyspace).getReplicationStrategy();
-                // getting collection of the currently used ranges by this keyspace
-                RangesAtEndpoint currentReplicas = strategy.getAddressReplicas(localAddress);
-
-                logger.info("Calculating ranges to stream and request for keyspace {}", keyspace);
-                //From what I have seen we only ever call this with a single token from StorageService.move(Token)
-                for (Token newToken : tokens)
-                {
-                    Collection<Token> currentTokens = tokenMetaClone.getTokens(localAddress);
-                    if (currentTokens.size() > 1 || currentTokens.isEmpty())
-                    {
-                        throw new AssertionError("Unexpected current tokens: " + currentTokens);
-                    }
-
-                    // collection of ranges which this node will serve after move to the new token
-                    RangesAtEndpoint updatedReplicas = strategy.getPendingAddressRanges(tokenMetaClone, newToken, localAddress);
-
-                    // calculated parts of the ranges to request/stream from/to nodes in the ring
-                    Pair<RangesAtEndpoint, RangesAtEndpoint> streamAndFetchOwnRanges = Pair.create(RangesAtEndpoint.empty(localAddress), RangesAtEndpoint.empty(localAddress));
-                    //In the single node token move there is nothing to do and Range subtraction is broken
-                    //so it's easier to just identify this case up front.
-                    if (tokenMetaClone.getTopology().getDatacenterEndpoints().get(DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort()
-)).size() > 1)
-                    {
-                        streamAndFetchOwnRanges = calculateStreamAndFetchRanges(currentReplicas, updatedReplicas);
-                    }
-
-                    Multimap<InetAddressAndPort, FetchReplica> workMap = calculateRangesToFetchWithPreferredEndpoints(strategy, streamAndFetchOwnRanges.right, keyspace);
-
-                    RangesByEndpoint endpointRanges = calculateRangesToStreamWithEndpoints(streamAndFetchOwnRanges.left, strategy, tokenMetaClone, tokenMetaCloneAllSettled);
-
-                    logger.info("Endpoint ranges to stream to " + endpointRanges);
-
-                    // stream ranges
-                    for (InetAddressAndPort address : endpointRanges.keySet())
-                    {
-                        logger.debug("Will stream range {} of keyspace {} to endpoint {}", endpointRanges.get(address), keyspace, address);
-                        RangesAtEndpoint ranges = endpointRanges.get(address);
-                        streamPlan.transferRanges(address, keyspace, ranges);
-                    }
-
-                    // stream requests
-                    workMap.asMap().forEach((address, sourceAndOurReplicas) -> {
-                        RangesAtEndpoint full = sourceAndOurReplicas.stream()
-                                .filter(pair -> pair.remote.isFull())
-                                .map(pair -> pair.local)
-                                .collect(RangesAtEndpoint.collector(localAddress));
-                        RangesAtEndpoint transientReplicas = sourceAndOurReplicas.stream()
-                                .filter(pair -> pair.remote.isTransient())
-                                .map(pair -> pair.local)
-                                .collect(RangesAtEndpoint.collector(localAddress));
-                        logger.debug("Will request range {} of keyspace {} from endpoint {}", workMap.get(address), keyspace, address);
-                        streamPlan.requestRanges(address, keyspace, full, transientReplicas);
-                    });
-
-                    logger.debug("Keyspace {}: work map {}.", keyspace, workMap);
-                }
-            }
-        }
-
-        public Future<StreamState> stream()
-        {
-            return streamPlan.execute();
-        }
-
-        public boolean streamsNeeded()
-        {
-            return !streamPlan.isEmpty();
-        }
     }
 
     public String getRemovalStatus()
@@ -5231,7 +5028,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             Map<InetAddressAndPort, Set<Range<Token>>> transferredRangePerKeyspace = SystemKeyspace.getTransferredRanges("Unbootstrap",
                                                                                                                          keyspace,
                                                                                                                          StorageService.instance.getTokenMetadata().partitioner);
-            RangesByEndpoint.Mutable replicasPerEndpoint = new RangesByEndpoint.Mutable();
+            RangesByEndpoint.Builder replicasPerEndpoint = new RangesByEndpoint.Builder();
             for (Map.Entry<Replica, Replica> endPointEntry : rangesWithEndpoints.flattenEntries())
             {
                 Replica local = endPointEntry.getKey();
@@ -5246,7 +5043,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 replicasPerEndpoint.put(remote.endpoint(), remote.decorateSubrange(local.range()));
             }
 
-            sessionsToStreamByKeyspace.put(keyspace, replicasPerEndpoint.asImmutableView());
+            sessionsToStreamByKeyspace.put(keyspace, replicasPerEndpoint.build());
         }
 
         StreamPlan streamPlan = new StreamPlan(StreamOperation.DECOMMISSION);
@@ -5269,115 +5066,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             }
         }
         return streamPlan.execute();
-    }
-
-    /**
-     * Calculate pair of ranges to stream/fetch for given two range collections
-     * (current ranges for keyspace and ranges after move to new token)
-     *
-     * With transient replication the added wrinkle is that if a range transitions from full to transient then
-     * we need to stream the range despite the fact that we are retaining it as transient. Some replica
-     * somewhere needs to transition from transient to full and we wll be the source.
-     *
-     * If the range is transient and is transitioning to full then always fetch even if the range was already transient
-     * since a transiently replicated obviously needs to fetch data to become full.
-     *
-     * This why there is a continue after checking for instersection because intersection is not sufficient reason
-     * to do the subtraction since we might need to stream/fetch data anyways.
-     *
-     * @param current collection of the ranges by current token
-     * @param updated collection of the ranges after token is changed
-     * @return pair of ranges to stream/fetch for given current and updated range collections
-     */
-    public static Pair<RangesAtEndpoint, RangesAtEndpoint> calculateStreamAndFetchRanges(RangesAtEndpoint current, RangesAtEndpoint updated)
-    {
-        // FIXME: transient replication
-        // this should always be the local node, except for tests TODO: assert this
-        RangesAtEndpoint.Builder toStream = RangesAtEndpoint.builder(current.endpoint());
-        RangesAtEndpoint.Builder toFetch  = RangesAtEndpoint.builder(current.endpoint());
-
-        logger.debug("Calculating toStream");
-        for (Replica r1 : current)
-        {
-            boolean intersect = false;
-            RangesAtEndpoint.Mutable remainder = null;
-            for (Replica r2 : updated)
-            {
-                logger.debug("Comparing {} and {}", r1, r2);
-                //If we will end up transiently replicating send the entire thing and don't subtract
-                if (r1.intersectsOnRange(r2) && !(r1.isFull() && r2.isTransient()))
-                {
-                    RangesAtEndpoint.Mutable oldRemainder = remainder;
-                    remainder = new RangesAtEndpoint.Mutable(current.endpoint());
-                    if (oldRemainder != null)
-                    {
-                        for (Replica replica : oldRemainder)
-                        {
-                            remainder.addAll(replica.subtractIgnoreTransientStatus(r2.range()));
-                        }
-                    }
-                    else
-                    {
-                        remainder.addAll(r1.subtractIgnoreTransientStatus(r2.range()));
-                    }
-                    logger.debug("    Intersects adding {}", remainder);
-                    intersect = true;
-                }
-            }
-            if (!intersect)
-            {
-                logger.debug("    Doesn't intersect adding {}", r1);
-                toStream.add(r1); // should stream whole old range
-            }
-            else
-            {
-                toStream.addAll(remainder);
-            }
-        }
-
-        logger.debug("Calculating toFetch");
-        for (Replica r2 : updated)
-        {
-            boolean intersect = false;
-            RangesAtEndpoint.Mutable remainder = null;
-            for (Replica r1 : current)
-            {
-                logger.info("Comparing {} and {}", r2, r1);
-                //Transitioning from transient to full means fetch everything so intersection doesn't matter.
-                if (r2.intersectsOnRange(r1) && !(r1.isTransient() && r2.isFull()))
-                {
-                    RangesAtEndpoint.Mutable oldRemainder = remainder;
-                    remainder = new RangesAtEndpoint.Mutable(current.endpoint());
-                    if (oldRemainder != null)
-                    {
-                        for (Replica replica : oldRemainder)
-                        {
-                            remainder.addAll(replica.subtractIgnoreTransientStatus(r1.range()));
-                        }
-                    }
-                    else
-                    {
-                        remainder.addAll(r2.subtractIgnoreTransientStatus(r1.range()));
-                    }
-                    logger.debug("    Intersects adding {}", remainder);
-                    intersect = true;
-                }
-            }
-            if (!intersect)
-            {
-                logger.debug("    Doesn't intersect adding {}", r2);
-                toFetch.add(r2); // should fetch whole old range
-            }
-            else
-            {
-                toFetch.addAll(remainder);
-            }
-        }
-
-        logger.debug("To stream {}", toStream);
-        logger.debug("To fetch {}", toFetch);
-
-        return Pair.create(toStream.build(), toFetch.build());
     }
 
     public void bulkLoad(String directory)

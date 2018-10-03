@@ -181,10 +181,16 @@ public class ShortReadPartitionsProtection extends Transformation<UnfilteredRowI
         DataResolver<E, P> resolver = new DataResolver<>(cmd, replicaPlan, (NoopReadRepair<E, P>)NoopReadRepair.instance, queryStartNanoTime);
         ReadCallback<E, P> handler = new ReadCallback<>(resolver, cmd, replicaPlan, queryStartNanoTime);
 
-        if (source.isLocal())
+        if (source.isSelf())
+        {
             StageManager.getStage(Stage.READ).maybeExecuteImmediately(new StorageProxy.LocalReadRunnable(cmd, handler));
+        }
         else
+        {
+            if (source.isTransient())
+                cmd = cmd.copyAsTransientQuery(source);
             MessagingService.instance().sendRRWithFailure(cmd.createMessage(), source.endpoint(), handler);
+        }
 
         // We don't call handler.get() because we want to preserve tombstones since we're still in the middle of merging node results.
         handler.awaitResults();

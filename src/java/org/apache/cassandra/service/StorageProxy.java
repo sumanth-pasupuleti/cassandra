@@ -81,6 +81,8 @@ import org.apache.cassandra.triggers.TriggerExecutor;
 import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.AbstractIterator;
 
+import static org.apache.cassandra.service.BatchlogResponseHandler.BatchlogCleanup;
+
 public class StorageProxy implements StorageProxyMBean
 {
     public static final String MBEAN_NAME = "org.apache.cassandra.db:type=StorageProxy";
@@ -447,7 +449,7 @@ public class StorageProxy implements StorageProxyMBean
         MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PREPARE, toPrepare, Commit.serializer);
         for (Replica replica: replicaPlan.contacts())
         {
-            if (replica.isLocal())
+            if (replica.isSelf())
             {
                 StageManager.getStage(MessagingService.verbStages.get(MessagingService.Verb.PAXOS_PREPARE)).execute(new Runnable()
                 {
@@ -485,7 +487,7 @@ public class StorageProxy implements StorageProxyMBean
         MessageOut<Commit> message = new MessageOut<Commit>(MessagingService.Verb.PAXOS_PROPOSE, proposal, Commit.serializer);
         for (Replica replica : replicaPlan.contacts())
         {
-            if (replica.isLocal())
+            if (replica.isSelf())
             {
                 StageManager.getStage(MessagingService.verbStages.get(MessagingService.Verb.PAXOS_PROPOSE)).execute(new Runnable()
                 {
@@ -550,7 +552,7 @@ public class StorageProxy implements StorageProxyMBean
             {
                 if (shouldBlock)
                 {
-                    if (replica.isLocal())
+                    if (replica.isSelf())
                         commitPaxosLocal(replica, message, responseHandler);
                     else
                         MessagingService.instance().sendWriteRR(message, replica, responseHandler, allowHints && shouldHint(replica));
@@ -624,7 +626,7 @@ public class StorageProxy implements StorageProxyMBean
     throws UnavailableException, OverloadedException, WriteTimeoutException, WriteFailureException
     {
         Tracing.trace("Determining replicas for mutation");
-        final String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
+        final String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getLocalDatacenter();
 
         long startTime = System.nanoTime();
 
@@ -756,7 +758,7 @@ public class StorageProxy implements StorageProxyMBean
     throws UnavailableException, OverloadedException, WriteTimeoutException
     {
         Tracing.trace("Determining replicas for mutation");
-        final String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
+        final String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getLocalDatacenter();
 
         long startTime = System.nanoTime();
 
@@ -781,8 +783,9 @@ public class StorageProxy implements StorageProxyMBean
                 ConsistencyLevel consistencyLevel = ConsistencyLevel.ONE;
 
                 //Since the base -> view replication is 1:1 we only need to store the BL locally
-                final Collection<InetAddressAndPort> batchlogEndpoints = Collections.singleton(FBUtilities.getBroadcastAddressAndPort());
-                BatchlogResponseHandler.BatchlogCleanup cleanup = new BatchlogResponseHandler.BatchlogCleanup(mutations.size(), () -> asyncRemoveFromBatchlog(batchlogEndpoints, batchUUID));
+                ReplicaPlan.ForTokenWrite replicaPlan = ReplicaPlans.forLocalBatchlogWrite();
+                BatchlogCleanup cleanup = new BatchlogCleanup(mutations.size(),
+                                                              () -> asyncRemoveFromBatchlog(replicaPlan, batchUUID));
 
                 // add a handler for each mutation - includes checking availability, but doesn't initiate any writes, yet
                 for (Mutation mutation : mutations)
@@ -807,7 +810,7 @@ public class StorageProxy implements StorageProxyMBean
                     // When local node is the endpoint we can just apply the mutation locally,
                     // unless there are pending endpoints, in which case we want to do an ordinary
                     // write so the view mutation is sent to the pending endpoint
-                    if (pairedEndpoint.get().isLocal() && StorageService.instance.isJoined()
+                    if (pairedEndpoint.get().isSelf() && StorageService.instance.isJoined()
                         && pendingReplicas.isEmpty())
                     {
                         try
@@ -900,7 +903,6 @@ public class StorageProxy implements StorageProxyMBean
         long startTime = System.nanoTime();
 
         List<WriteResponseHandlerWrapper> wrappers = new ArrayList<WriteResponseHandlerWrapper>(mutations.size());
-        String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getDatacenter(FBUtilities.getBroadcastAddressAndPort());
 
         if (mutations.stream().anyMatch(mutation -> Keyspace.open(mutation.getKeyspaceName()).getReplicationStrategy().hasTransientReplicas()))
             throw new AssertionError("Logged batches are unsupported with transient replication");
@@ -921,10 +923,11 @@ public class StorageProxy implements StorageProxyMBean
                     batchConsistencyLevel = consistency_level;
             }
 
-            final Collection<InetAddressAndPort> batchlogEndpoints = getBatchlogReplicas(localDataCenter, batchConsistencyLevel);
+            ReplicaPlan.ForTokenWrite replicaPlan = ReplicaPlans.forBatchlogWrite(batchConsistencyLevel == ConsistencyLevel.ANY);
+
             final UUID batchUUID = UUIDGen.getTimeUUID();
-            BatchlogResponseHandler.BatchlogCleanup cleanup = new BatchlogResponseHandler.BatchlogCleanup(mutations.size(),
-                                                                                                          () -> asyncRemoveFromBatchlog(batchlogEndpoints, batchUUID));
+            BatchlogCleanup cleanup = new BatchlogCleanup(mutations.size(),
+                                                          () -> asyncRemoveFromBatchlog(replicaPlan, batchUUID));
 
             // add a handler for each mutation - includes checking availability, but doesn't initiate any writes, yet
             for (Mutation mutation : mutations)
@@ -940,10 +943,10 @@ public class StorageProxy implements StorageProxyMBean
             }
 
             // write to the batchlog
-            syncWriteToBatchlog(mutations, batchlogEndpoints, batchUUID, queryStartNanoTime);
+            syncWriteToBatchlog(mutations, replicaPlan, batchUUID, queryStartNanoTime);
 
             // now actually perform the writes and wait for them to complete
-            syncWriteBatchedMutations(wrappers, localDataCenter, Stage.MUTATION);
+            syncWriteBatchedMutations(wrappers, Stage.MUTATION);
         }
         catch (UnavailableException e)
         {
@@ -999,11 +1002,9 @@ public class StorageProxy implements StorageProxyMBean
         }
     }
 
-    private static void syncWriteToBatchlog(Collection<Mutation> mutations, Collection<InetAddressAndPort> endpoints, UUID uuid, long queryStartNanoTime)
+    private static void syncWriteToBatchlog(Collection<Mutation> mutations, ReplicaPlan.ForTokenWrite replicaPlan, UUID uuid, long queryStartNanoTime)
     throws WriteTimeoutException, WriteFailureException
     {
-        Keyspace systemKeypsace = Keyspace.open(SchemaConstants.SYSTEM_KEYSPACE_NAME);
-        ReplicaPlan.ForTokenWrite replicaPlan = ReplicaPlans.forBatchlogWrite(systemKeypsace, endpoints);
         WriteResponseHandler<?> handler = new WriteResponseHandler(replicaPlan,
                                                                    WriteType.BATCH_LOG,
                                                                    queryStartNanoTime);
@@ -1014,7 +1015,7 @@ public class StorageProxy implements StorageProxyMBean
         {
             logger.trace("Sending batchlog store request {} to {} for {} mutations", batch.id, replica, batch.size());
 
-            if (replica.isLocal())
+            if (replica.isSelf())
                 performLocally(Stage.MUTATION, replica, Optional.empty(), () -> BatchlogManager.store(batch), handler);
             else
                 MessagingService.instance().sendRR(message, replica.endpoint(), handler);
@@ -1022,18 +1023,18 @@ public class StorageProxy implements StorageProxyMBean
         handler.get();
     }
 
-    private static void asyncRemoveFromBatchlog(Collection<InetAddressAndPort> endpoints, UUID uuid)
+    private static void asyncRemoveFromBatchlog(ReplicaPlan.ForTokenWrite replicaPlan, UUID uuid)
     {
         MessageOut<UUID> message = new MessageOut<>(MessagingService.Verb.BATCH_REMOVE, uuid, UUIDSerializer.serializer);
-        for (InetAddressAndPort target : endpoints)
+        for (Replica target : replicaPlan.contacts())
         {
             if (logger.isTraceEnabled())
                 logger.trace("Sending batchlog remove request {} to {}", uuid, target);
 
-            if (target.equals(FBUtilities.getBroadcastAddressAndPort()))
-                performLocally(Stage.MUTATION, SystemReplicas.getSystemReplica(target), () -> BatchlogManager.remove(uuid));
+            if (target.isSelf())
+                performLocally(Stage.MUTATION, target, () -> BatchlogManager.remove(uuid));
             else
-                MessagingService.instance().sendOneWay(message, target);
+                MessagingService.instance().sendOneWay(message, target.endpoint());
         }
     }
 
@@ -1055,9 +1056,11 @@ public class StorageProxy implements StorageProxyMBean
         }
     }
 
-    private static void syncWriteBatchedMutations(List<WriteResponseHandlerWrapper> wrappers, String localDataCenter, Stage stage)
+    private static void syncWriteBatchedMutations(List<WriteResponseHandlerWrapper> wrappers, Stage stage)
     throws WriteTimeoutException, OverloadedException
     {
+        String localDataCenter = DatabaseDescriptor.getEndpointSnitch().getLocalDatacenter();
+
         for (WriteResponseHandlerWrapper wrapper : wrappers)
         {
             EndpointsForToken sendTo = wrapper.handler.replicaPlan.liveAndDown();
@@ -1163,32 +1166,6 @@ public class StorageProxy implements StorageProxyMBean
         }
     }
 
-    /*
-     * Replicas are picked manually:
-     * - replicas should be alive according to the failure detector
-     * - replicas should be in the local datacenter
-     * - choose min(2, number of qualifying candiates above)
-     * - allow the local node to be the only replica only if it's a single-node DC
-     */
-    private static Collection<InetAddressAndPort> getBatchlogReplicas(String localDataCenter, ConsistencyLevel consistencyLevel)
-    throws UnavailableException
-    {
-        TokenMetadata.Topology topology = StorageService.instance.getTokenMetadata().cachedOnlyTokenMap().getTopology();
-        Multimap<String, InetAddressAndPort> localEndpoints = HashMultimap.create(topology.getDatacenterRacks().get(localDataCenter));
-        String localRack = DatabaseDescriptor.getEndpointSnitch().getRack(FBUtilities.getBroadcastAddressAndPort());
-
-        Collection<InetAddressAndPort> chosenEndpoints = new BatchlogManager.EndpointFilter(localRack, localEndpoints).filter();
-        if (chosenEndpoints.isEmpty())
-        {
-            if (consistencyLevel == ConsistencyLevel.ANY)
-                return Collections.singleton(FBUtilities.getBroadcastAddressAndPort());
-
-            throw UnavailableException.create(ConsistencyLevel.ONE, 1, 0);
-        }
-
-        return chosenEndpoints;
-    }
-
     /**
      * Send the mutations to the right targets, write it locally if it corresponds or writes a hint when the node
      * is not available.
@@ -1232,7 +1209,7 @@ public class StorageProxy implements StorageProxyMBean
 
             if (plan.isAlive(destination))
             {
-                if (destination.isLocal())
+                if (destination.isSelf())
                 {
                     insertLocal = true;
                     localReplica = destination;
@@ -1425,7 +1402,7 @@ public class StorageProxy implements StorageProxyMBean
     {
         Replica replica = findSuitableReplica(cm.getKeyspaceName(), cm.key(), localDataCenter, cm.consistency());
 
-        if (replica.isLocal())
+        if (replica.isSelf())
         {
             return applyCounterMutationOnCoordinator(cm, localDataCenter, queryStartNanoTime);
         }
@@ -1436,8 +1413,8 @@ public class StorageProxy implements StorageProxyMBean
             Keyspace keyspace = Keyspace.open(keyspaceName);
             Token tk = cm.key().getToken();
 
-            ReplicaPlans.forWrite(keyspace, cm.consistency(), tk, ReplicaPlans.writeAll)
-                    .assureSufficientReplicas();
+            // we build this ONLY to perform the sufficiency check that happens on construction
+            ReplicaPlans.forWrite(keyspace, cm.consistency(), tk, ReplicaPlans.writeAll);
 
             // Forward the actual update to the chosen leader replica
             AbstractWriteResponseHandler<IMutation> responseHandler = new WriteResponseHandler<>(ReplicaPlans.forForwardingCounterWrite(keyspace, tk, replica),
@@ -2101,8 +2078,6 @@ public class StorageProxy implements StorageProxyMBean
             ReadCallback<EndpointsForRange, ReplicaPlan.ForRangeRead> handler
                     = new ReadCallback<>(resolver, rangeCommand, sharedReplicaPlan, queryStartNanoTime);
 
-            replicaPlan.assureSufficientReplicas();
-
             // If enabled, request repaired data tracking info from full replicas but
             // only if there are multiple full replicas to compare results from
             if (DatabaseDescriptor.getRepairedDataTrackingForPartitionReadsEnabled()
@@ -2111,7 +2086,7 @@ public class StorageProxy implements StorageProxyMBean
                 command.trackRepairedStatus();
             }
 
-            if (replicaPlan.contacts().size() == 1 && replicaPlan.contacts().get(0).isLocal())
+            if (replicaPlan.contacts().size() == 1 && replicaPlan.contacts().get(0).isSelf())
             {
                 StageManager.getStage(Stage.READ).execute(new LocalReadRunnable(rangeCommand, handler));
             }
@@ -2120,7 +2095,7 @@ public class StorageProxy implements StorageProxyMBean
                 for (Replica replica : replicaPlan.contacts())
                 {
                     Tracing.trace("Enqueuing request to {}", replica);
-                    PartitionRangeReadCommand command = replica.isFull() ? rangeCommand : rangeCommand.copyAsTransientQuery();
+                    ReadCommand command = replica.isFull() ? rangeCommand : rangeCommand.copyAsTransientQuery(replica);
                     MessageOut<ReadCommand> message = command.createMessage();
                     if (command.isTrackingRepairedStatus() && replica.isFull())
                         message = message.withParameter(ParameterType.TRACK_REPAIRED_DATA, MessagingService.ONE_BYTE);
@@ -2381,7 +2356,7 @@ public class StorageProxy implements StorageProxyMBean
     {
         if (!DatabaseDescriptor.hintedHandoffEnabled())
             return false;
-        if (replica.isTransient() || replica.isLocal())
+        if (replica.isTransient() || replica.isSelf())
             return false;
 
         Set<String> disabledDCs = DatabaseDescriptor.hintedHandoffDisabledDCs();
