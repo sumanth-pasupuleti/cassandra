@@ -39,7 +39,7 @@ public class BlacklistedPartitionCache
     private static final Logger logger = LoggerFactory.getLogger(BlacklistedPartitionCache.class);
     private volatile Set<BlacklistedPartition> blacklistedPartitions;
 
-    public BlacklistedPartitionCache()
+    private BlacklistedPartitionCache()
     {
         // setup a periodic refresh
         ScheduledExecutors.optionalTasks.scheduleWithFixedDelay(this::refreshCache,
