@@ -165,28 +165,28 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
         session.execute(pstmt.bind(ByteBufferUtil.hexToBytes("12345F"), "k12:colon", 1, "cc1"));
     }
 
-    @Test
-    public void testFailureReadingBlacklistedParitions() throws Throwable
-    {
-        // create a test table
-        String table1 = createAndPopulateTable();
-
-        // drop blacklisted partitions table
-        execute(String.format("DROP TABLE %s.%s", SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, SystemDistributedKeyspace.BLACKLISTED_PARTITIONS));
-
-        // refresh blacklist cache
-        BlacklistedPartitionCache.instance.refreshCache();
-
-        Session session = sessionNet();
-
-        // querying nonblacklisted partition on table1 should be successful
-        PreparedStatement pstmt = session.prepare("SELECT id, v1, v2 FROM " + KEYSPACE + '.' + table1 + " WHERE id = ?");
-        ResultSet rs = session.execute(pstmt.bind(1));
-        Assert.assertEquals(1, rs.all().size());
-
-        // recreate the dropped blacklisted partitions table
-        SystemDistributedKeyspace.metadata();
-    }
+//    @Test
+//    public void testFailureReadingBlacklistedParitions() throws Throwable
+//    {
+//        // create a test table
+//        String table1 = createAndPopulateTable();
+//
+//        // drop blacklisted partitions table
+//        execute(String.format("DROP TABLE %s.%s", SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, SystemDistributedKeyspace.BLACKLISTED_PARTITIONS));
+//
+//        // refresh blacklist cache
+//        BlacklistedPartitionCache.instance.refreshCache();
+//
+//        Session session = sessionNet();
+//
+//        // querying nonblacklisted partition on table1 should be successful
+//        PreparedStatement pstmt = session.prepare("SELECT id, v1, v2 FROM " + KEYSPACE + '.' + table1 + " WHERE id = ?");
+//        ResultSet rs = session.execute(pstmt.bind(1));
+//        Assert.assertEquals(1, rs.all().size());
+//
+//        // recreate the dropped blacklisted partitions table
+//        SystemDistributedKeyspace.metadata();
+//    }
 
     private String createAndPopulateTable() throws Throwable
     {
