@@ -183,6 +183,9 @@ public class BlacklistedPartitionsCacheTest extends CQLTester
         PreparedStatement pstmt = session.prepare("SELECT id, v1, v2 FROM " + KEYSPACE + '.' + table1 + " WHERE id = ?");
         ResultSet rs = session.execute(pstmt.bind(1));
         Assert.assertEquals(1, rs.all().size());
+
+        // recreate the dropped blacklisted partitions table
+        SystemDistributedKeyspace.metadata();
     }
 
     private String createAndPopulateTable() throws Throwable
