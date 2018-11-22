@@ -608,7 +608,7 @@ public abstract class Message
 
             if (!alwaysLogAtError && exception instanceof IOException)
             {
-                if (ioExceptionsAtDebugLevel.contains(exception.getMessage()))
+                if (ioExceptionsAtDebugLevel.stream().anyMatch(ioExceptionAtDebugLevel -> exception.getMessage().contains(ioExceptionAtDebugLevel)))
                 {
                     // Likely unclean client disconnects
                     logger.trace(message, exception);
