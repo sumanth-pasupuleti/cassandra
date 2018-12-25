@@ -98,7 +98,12 @@ public final class ReplicationParams
             // if RF is not mentioned with the alter statement
             String rf = defaults.containsKey("replication_factor") ? defaults.get("replication_factor")
                                                                    : Integer.toString(DatabaseDescriptor.getDefaultKeyspaceRF());
-            options.putIfAbsent("replication_factor", rf);
+
+            // in case of NTS, add replication_factor only if there is no explicit mention of DCs. Otherwise, non-mentioned DCs will be added with default RF
+            if (klass == SimpleStrategy.class || options.isEmpty())
+            {
+                options.putIfAbsent("replication_factor", rf);
+            }
         }
 
         AbstractReplicationStrategy.prepareReplicationStrategyOptions(klass, options, defaults);
