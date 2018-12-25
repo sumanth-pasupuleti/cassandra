@@ -386,9 +386,12 @@ public class CreateTest extends CQLTester
      * Test {@link ConfigurationException} is thrown on create NetworkTopologyStrategy keyspace without any options.
      */
     @Test
-    public void testConfigurationExceptionThrownWhenCreateKeyspaceWithNetworkTopologyStrategyNoOptions() throws Throwable
+    public void testConfigurationExceptionNotThrownWhenCreateKeyspaceWithNetworkTopologyStrategyNoOptions() throws Throwable
     {
-        assertInvalidThrow(ConfigurationException.class, "CREATE KEYSPACE testXYZ with replication = { 'class': 'NetworkTopologyStrategy' }");
+        schemaChange( "CREATE KEYSPACE testXYZ with replication = { 'class': 'NetworkTopologyStrategy' }");
+
+        // clean-up
+        execute("DROP KEYSPACE IF EXISTS testXYZ");
     }
 
     /**

@@ -65,8 +65,6 @@ public class ReplicationFactor
                                     "Transient replication is not enabled on this node");
         Preconditions.checkArgument(totalRF >= 0,
                                     "Replication factor must be non-negative, found %s", totalRF);
-        Preconditions.checkArgument(totalRF < DatabaseDescriptor.getMinimumKeyspaceRF(),
-                                    "Replication factor cannot be less than minimum_keyspace_rf (%s), found %s", DatabaseDescriptor.getMinimumKeyspaceRF(), totalRF);
         Preconditions.checkArgument(transientRF == 0 || transientRF < totalRF,
                                     "Transient replicas must be zero, or less than total replication factor. For %s/%s", totalRF, transientRF);
         if (transientRF > 0)
