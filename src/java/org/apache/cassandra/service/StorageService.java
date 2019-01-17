@@ -5361,6 +5361,12 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         logger.info("Updated hinted_handoff_throttle_in_kb to {}", throttleInKB);
     }
 
+    public void setMaxFlusherQueueSizeInMB(int sizeInMB)
+    {
+        DatabaseDescriptor.setMaxFlusherQueueSizeInMB(sizeInMB);
+        logger.info("Updated max_flusher_queue_size_in_mb to {}", sizeInMB);
+    }
+
     @Override
     public void clearConnectionHistory()
     {

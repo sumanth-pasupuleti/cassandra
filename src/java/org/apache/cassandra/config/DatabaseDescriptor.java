@@ -2728,4 +2728,14 @@ public class DatabaseDescriptor
     {
         conf.report_unconfirmed_repaired_data_mismatches = enabled;
     }
+
+    public static void setMaxFlusherQueueSizeInMB(int value)
+    {
+        conf.max_flusher_queue_size_in_mb = value;
+    }
+
+    public static long getMaxFlusherQueueSizeInBytes()
+    {
+        return conf.max_flusher_queue_size_in_mb * 1024L * 1024L;
+    }
 }

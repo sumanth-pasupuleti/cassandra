@@ -810,6 +810,11 @@ public class NodeProbe implements AutoCloseable
         ssProxy.setHintedHandoffThrottleInKB(throttleInKB);
     }
 
+    public void setMaxFlusherQueueSizeInMB(int sizeInMB)
+    {
+        ssProxy.setMaxFlusherQueueSizeInMB(sizeInMB);
+    }
+
     public List<String> getEndpointsWithPort(String keyspace, String cf, String key)
     {
         return ssProxy.getNaturalEndpointsWithPort(keyspace, cf, key);

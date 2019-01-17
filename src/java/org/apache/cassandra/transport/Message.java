@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
@@ -42,12 +45,17 @@ import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.service.ClientWarn;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.tools.nodetool.Flush;
 import org.apache.cassandra.tracing.Tracing;
 import org.apache.cassandra.transport.messages.*;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.apache.cassandra.utils.NoSpamLogger;
+import org.apache.cassandra.utils.ObjectSizes;
 import org.apache.cassandra.utils.UUIDGen;
 
 /**
@@ -154,6 +162,13 @@ public abstract class Message
     private Frame sourceFrame;
     private Map<String, ByteBuffer> customPayload;
     protected ProtocolVersion forcedProtocolVersion = null;
+
+    private static ProtocolVersion getProtocolVersion(ChannelHandlerContext ctx)
+    {
+        Connection connection = ctx.channel().attr(Connection.attributeKey).get();
+        // The only case the connection can be null is when we send the initial STARTUP message (client side thus)
+        return connection == null ? ProtocolVersion.CURRENT : connection.getVersion();
+    }
 
     protected Message(Type type)
     {
@@ -362,9 +377,7 @@ public abstract class Message
     {
         public void encode(ChannelHandlerContext ctx, Message message, List results)
         {
-            Connection connection = ctx.channel().attr(Connection.attributeKey).get();
-            // The only case the connection can be null is when we send the initial STARTUP message (client side thus)
-            ProtocolVersion version = connection == null ? ProtocolVersion.CURRENT : connection.getVersion();
+            ProtocolVersion version = getProtocolVersion(ctx);
             EnumSet<Frame.Header.Flag> flags = EnumSet.noneOf(Frame.Header.Flag.class);
 
             Codec<Message> codec = (Codec<Message>)message.type.codec;
@@ -458,20 +471,32 @@ public abstract class Message
         private static class FlushItem
         {
             final ChannelHandlerContext ctx;
-            final Object response;
+            final Message response;
             final Frame sourceFrame;
-            private FlushItem(ChannelHandlerContext ctx, Object response, Frame sourceFrame)
+            final int responseSizeInBytes;
+            private FlushItem(ChannelHandlerContext ctx, Message response, Frame sourceFrame)
             {
                 this.ctx = ctx;
                 this.sourceFrame = sourceFrame;
                 this.response = response;
+
+                // set response size
+                Codec<Message> codec = (Codec<Message>) response.type.codec;
+                // TODO: saw this take about 0.03 ms for simple select * with two rows. This can slow down the
+                // pace at which we enqueue items
+                this.responseSizeInBytes = codec.encodedSize(response, getProtocolVersion(ctx));
             }
         }
+
 
         private static abstract class Flusher implements Runnable
         {
             final EventLoop eventLoop;
             final ConcurrentLinkedQueue<FlushItem> queued = new ConcurrentLinkedQueue<>();
+
+            // size of items present in the flusher queue and netty send buffer queue together
+            AtomicLong queueSizeInBytes = new AtomicLong (0);
+
             final AtomicBoolean scheduled = new AtomicBoolean(false);
             final HashSet<ChannelHandlerContext> channels = new HashSet<>();
             final List<FlushItem> flushed = new ArrayList<>();
@@ -504,11 +529,16 @@ public abstract class Message
             {
 
                 boolean doneWork = false;
+
                 FlushItem flush;
                 while ( null != (flush = queued.poll()) )
                 {
+                    FlushItem closureCapture = flush;
                     channels.add(flush.ctx);
-                    flush.ctx.write(flush.response, flush.ctx.voidPromise());
+                    flush.ctx.write(flush.response, flush.ctx.newPromise()
+                                                             .addListener(f -> {
+                                                                 queueSizeInBytes.addAndGet(-closureCapture.responseSizeInBytes);
+                                                             }));
                     flushed.add(flush);
                     doneWork = true;
                 }
@@ -561,9 +591,14 @@ public abstract class Message
 
                 while (null != (flush = queued.poll()))
                 {
+                    FlushItem closureCapture = flush;
                     channels.add(flush.ctx);
-                    flush.ctx.write(flush.response, flush.ctx.voidPromise());
-                    flushed.add(flush);
+                    flush.ctx.write(flush.response, flush.ctx.newPromise()
+                                                             .addListener(p -> {
+                                                                 queueSizeInBytes.addAndGet(-closureCapture.responseSizeInBytes);
+                                                                 closureCapture.sourceFrame.release();
+                                                             }));
+//                    flushed.add(flush);
                     doneWork = true;
                 }
 
@@ -571,11 +606,11 @@ public abstract class Message
                 {
                     for (ChannelHandlerContext channel : channels)
                         channel.flush();
-                    for (FlushItem item : flushed)
-                        item.sourceFrame.release();
+//                    for (FlushItem item : flushed)
+//                        item.sourceFrame.release();
 
                     channels.clear();
-                    flushed.clear();
+//                    flushed.clear();
                 }
             }
         }
@@ -617,6 +652,7 @@ public abstract class Message
             }
             catch (Throwable t)
             {
+
                 JVMStabilityInspector.inspectThrowable(t);
                 UnexpectedChannelExceptionHandler handler = new UnexpectedChannelExceptionHandler(ctx.channel(), true);
                 flush(new FlushItem(ctx, ErrorMessage.fromException(t, handler).setStreamId(request.getStreamId()), request.getSourceFrame()));
@@ -643,8 +679,18 @@ public abstract class Message
                     flusher = alt;
             }
 
-            flusher.queued.add(item);
-            flusher.start();
+            // check for memory usage by flusher queue and netty send buffer queue
+            if (flusher.queueSizeInBytes.get() + item.responseSizeInBytes < DatabaseDescriptor.getMaxFlusherQueueSizeInBytes())
+            {
+                flusher.queued.add(item);
+                flusher.queueSizeInBytes.addAndGet(item.responseSizeInBytes);
+                flusher.start();
+            }
+            else
+            {
+                logger.trace("Flusher queue is full. Dropped message.");
+                MessagingService.instance().incrementDroppedMessages(MessagingService.Verb.REQUEST_RESPONSE);
+            }
         }
     }
 

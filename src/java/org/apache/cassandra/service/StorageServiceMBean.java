@@ -684,6 +684,9 @@ public interface StorageServiceMBean extends NotificationEmitter
     /** Sets the hinted handoff throttle in kb per second, per delivery thread. */
     public void setHintedHandoffThrottleInKB(int throttleInKB);
 
+    /** Sets the max flusher queue size in mb. */
+    public void setMaxFlusherQueueSizeInMB(int sizeInMB);
+
     /**
      * Resume bootstrap streaming when there is failed data streaming.
      *
