@@ -1941,6 +1941,26 @@ public class DatabaseDescriptor
         return conf.native_transport_frame_block_size_in_kb * 1024;
     }
 
+    public static long getNativeTransportMaxConcurrentRequestsInBytesPerIp()
+    {
+        return conf.native_transport_max_concurrent_requests_in_bytes_per_ip;
+    }
+
+    public static void setNativeTransportMaxConcurrentRequestsInBytesPerIp(long maxConcurrentRequestsInBytes)
+    {
+        conf.native_transport_max_concurrent_requests_in_bytes_per_ip = maxConcurrentRequestsInBytes;
+    }
+
+    public static long getNativeTransportMaxConcurrentRequestsInBytes()
+    {
+        return conf.native_transport_max_concurrent_requests_in_bytes;
+    }
+
+    public static void setNativeTransportMaxConcurrentRequestsInBytes(long maxConcurrentRequestsInBytes)
+    {
+        conf.native_transport_max_concurrent_requests_in_bytes = maxConcurrentRequestsInBytes;
+    }
+
     public static double getCommitLogSyncGroupWindow()
     {
         return conf.commitlog_sync_group_window_in_ms;

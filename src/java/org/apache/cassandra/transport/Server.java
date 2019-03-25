@@ -23,7 +23,9 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,7 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.EncryptionOptions;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.net.async.ResourceLimits;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaChangeListener;
 import org.apache.cassandra.security.SSLFactory;
@@ -83,7 +86,6 @@ public class Server implements CassandraDaemon.Server
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     private EventLoopGroup workerGroup;
-    private EventExecutor eventExecutorGroup;
 
     private Server (Builder builder)
     {
@@ -100,8 +102,6 @@ public class Server implements CassandraDaemon.Server
             else
                 workerGroup = new NioEventLoopGroup();
         }
-        if (builder.eventExecutorGroup != null)
-            eventExecutorGroup = builder.eventExecutorGroup;
         EventNotifier notifier = new EventNotifier(this);
         StorageService.instance.register(notifier);
         Schema.instance.registerListener(notifier);
@@ -230,12 +230,6 @@ public class Server implements CassandraDaemon.Server
             return this;
         }
 
-        public Builder withEventExecutor(EventExecutor eventExecutor)
-        {
-            this.eventExecutorGroup = eventExecutor;
-            return this;
-        }
-
         public Builder withHost(InetAddress host)
         {
             this.hostAddr = host;
@@ -337,6 +331,85 @@ public class Server implements CassandraDaemon.Server
 
     }
 
+    // global inflight payload across all channels across all endpoints
+    private static final ResourceLimits.Concurrent globalRequestPayloadInFlight = new ResourceLimits.Concurrent(DatabaseDescriptor.getNativeTransportMaxConcurrentRequestsInBytes());
+
+    public static class EndpointPayloadTracker
+    {
+        // inflight payload per endpoint across corresponding channels
+        private static final ConcurrentMap<InetAddress, EndpointPayloadTracker> requestPayloadInFlightPerEndpoint = new ConcurrentHashMap<>();
+
+        private final AtomicInteger refCount = new AtomicInteger(0);
+        private final InetAddress endpoint;
+
+        public ResourceLimits.EndpointAndGlobal endpointAndGlobalPayloadsInFlight = new ResourceLimits.EndpointAndGlobal(new ResourceLimits.Concurrent(DatabaseDescriptor.getNativeTransportMaxConcurrentRequestsInBytesPerIp()),
+                                                                                                                         globalRequestPayloadInFlight);
+
+        private EndpointPayloadTracker(InetAddress endpoint)
+        {
+            this.endpoint = endpoint;
+        }
+
+        public static EndpointPayloadTracker get(InetAddress endpoint)
+        {
+            EndpointPayloadTracker endpointPayloadTracker;
+            while (true)
+            {
+                endpointPayloadTracker = requestPayloadInFlightPerEndpoint.computeIfAbsent(endpoint, (newEndpointPayloadTracker) -> new EndpointPayloadTracker(endpoint));
+                if (endpointPayloadTracker.tryRef() != null)
+                {
+                    break;
+                }
+                else
+                {
+                    requestPayloadInFlightPerEndpoint.remove(endpoint, endpointPayloadTracker);
+                }
+            }
+
+            return endpointPayloadTracker;
+        }
+
+        // should never return an EndpointPayloadTracker that has been removed from the map
+        private EndpointPayloadTracker tryRef()
+        {
+            int current;
+            int next;
+            do
+            {
+                current = refCount.get();
+                if (current < 0)
+                {
+                    return null;
+                }
+                next = current + 1;
+            } while (!refCount.compareAndSet(current, next));
+
+            return this;
+        }
+
+        public void release()
+        {
+            int current;
+            int next;
+            do
+            {
+                current = refCount.get();
+                next = current - 1;
+                if (next == 0)
+                {
+                    // this is to ensure we do not mint more refs once refCount falls to 0
+                    next = -1;
+                }
+            } while (!refCount.compareAndSet(current, next));
+            // this is a safe point to remove tracker from the map, since the logic in tryRef() ensures we do not return
+            // this instance of tracker if refCount falls below 0.
+            if (refCount.get() < 0)
+            {
+                requestPayloadInFlightPerEndpoint.remove(endpoint, this);
+            }
+        }
+    }
+
     private static class Initializer extends ChannelInitializer<Channel>
     {
         // Stateless handlers
@@ -346,7 +419,6 @@ public class Server implements CassandraDaemon.Server
         private static final Frame.OutboundBodyTransformer outboundFrameTransformer = new Frame.OutboundBodyTransformer();
         private static final Frame.Encoder frameEncoder = new Frame.Encoder();
         private static final Message.ExceptionHandler exceptionHandler = new Message.ExceptionHandler();
-        private static final Message.Dispatcher dispatcher = new Message.Dispatcher(DatabaseDescriptor.useNativeTransportLegacyFlusher());
         private static final ConnectionLimitHandler connectionLimitHandler = new ConnectionLimitHandler();
 
         private final Server server;
@@ -379,6 +451,9 @@ public class Server implements CassandraDaemon.Server
             pipeline.addLast("messageDecoder", messageDecoder);
             pipeline.addLast("messageEncoder", messageEncoder);
 
+            pipeline.addLast("executor", new Message.Dispatcher(DatabaseDescriptor.useNativeTransportLegacyFlusher(),
+                                                                EndpointPayloadTracker.get(((InetSocketAddress) channel.remoteAddress()).getAddress())));
+
             // The exceptionHandler will take care of handling exceptionCaught(...) events while still running
             // on the same EventLoop as all previous added handlers in the pipeline. This is important as the used
             // eventExecutorGroup may not enforce strict ordering for channel events.
@@ -386,11 +461,6 @@ public class Server implements CassandraDaemon.Server
             // correctly handled before the handler itself is removed.
             // See https://issues.apache.org/jira/browse/CASSANDRA-13649
             pipeline.addLast("exceptionHandler", exceptionHandler);
-
-            if (server.eventExecutorGroup != null)
-                pipeline.addLast(server.eventExecutorGroup, "executor", dispatcher);
-            else
-                pipeline.addLast("executor", dispatcher);
         }
     }
 
