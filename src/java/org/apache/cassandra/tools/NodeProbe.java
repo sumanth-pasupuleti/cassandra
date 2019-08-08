@@ -686,6 +686,11 @@ public class NodeProbe implements AutoCloseable
         return ssProxy.isDraining();
     }
 
+    public boolean isBootstrapMode()
+    {
+        return ssProxy.isBootstrapMode();
+    }
+
     public void joinRing() throws IOException
     {
         ssProxy.joinRing();
@@ -1741,7 +1746,7 @@ public class NodeProbe implements AutoCloseable
         return arsProxy;
     }
 
-    public void reloadSslCerts()
+    public void reloadSslCerts() throws IOException
     {
         msProxy.reloadSslCertificates();
     }
