@@ -32,8 +32,6 @@ All mutations write optimized by storing in commitlog segments, reducing the num
 
 *Default Value:* 32
 
-Commitlogs are an append only log of all mutations local to a Cassandra node. Any data written to Cassandra will first be written to a commit log before being written to a memtable. This provides durability in the case of unexpected shutdown. On startup, any mutations in the commit log will be applied.
-
 - ``commitlog_sync``: may be either “periodic” or “batch.”
 
   - ``batch``: In batch mode, Cassandra won’t ack writes until the commit log has been fsynced to disk. It will wait "commitlog_sync_batch_window_in_ms" milliseconds between fsyncs. This window should be kept short because the writer threads will be unable to do extra work while waiting. You may need to increase concurrent_writes for the same reason.
