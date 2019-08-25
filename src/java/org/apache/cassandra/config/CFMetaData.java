@@ -243,6 +243,12 @@ public final class CFMetaData
         return this;
     }
 
+    public CFMetaData cdc(boolean isEnabled)
+    {
+        params = TableParams.builder(params).cdc(isEnabled).build();
+        return this;
+    }
+
     public CFMetaData extensions(Map<String, ByteBuffer> extensions)
     {
         params = TableParams.builder(params).extensions(extensions).build();

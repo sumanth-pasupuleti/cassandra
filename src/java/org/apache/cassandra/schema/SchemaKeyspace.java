@@ -123,6 +123,7 @@ public final class SchemaKeyspace
                 + "table_name text,"
                 + "bloom_filter_fp_chance double,"
                 + "caching frozen<map<text, text>>,"
+                + "cdc boolean,"
                 + "comment text,"
                 + "compaction frozen<map<text, text>>,"
                 + "compression frozen<map<text, text>>,"
@@ -187,6 +188,7 @@ public final class SchemaKeyspace
                 + "where_clause text,"
                 + "bloom_filter_fp_chance double,"
                 + "caching frozen<map<text, text>>,"
+                + "cdc boolean,"
                 + "comment text,"
                 + "compaction frozen<map<text, text>>,"
                 + "compression frozen<map<text, text>>,"
@@ -1036,6 +1038,7 @@ public final class SchemaKeyspace
         return TableParams.builder()
                           .bloomFilterFpChance(row.getDouble("bloom_filter_fp_chance"))
                           .caching(CachingParams.fromMap(row.getFrozenTextMap("caching")))
+                          .cdc(row.getBoolean("cdc"))
                           .comment(row.getString("comment"))
                           .compaction(CompactionParams.fromMap(row.getFrozenTextMap("compaction")))
                           .compression(CompressionParams.fromMap(row.getFrozenTextMap("compression")))
