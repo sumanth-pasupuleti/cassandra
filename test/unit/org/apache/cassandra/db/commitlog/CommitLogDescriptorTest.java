@@ -115,7 +115,7 @@ public class CommitLogDescriptorTest
     @Test
     public void constructParametersString_NoCompression()
     {
-        String json = CommitLogDescriptor.constructParametersString(null, null);
+        String json = CommitLogDescriptor.constructParametersString(null, Collections.emptyMap());
         Assert.assertFalse(json.contains(CommitLogDescriptor.COMPRESSION_CLASS_KEY));
 
         json = CommitLogDescriptor.constructParametersString(null, Collections.emptyMap());
