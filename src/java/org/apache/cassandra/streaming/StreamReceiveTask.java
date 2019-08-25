@@ -182,6 +182,7 @@ public class StreamReceiveTask extends StreamTask
         public void run()
         {
             boolean hasViews = false;
+            boolean hasCdc = false;
             ColumnFamilyStore cfs = null;
             try
             {
@@ -196,16 +197,19 @@ public class StreamReceiveTask extends StreamTask
                 }
                 cfs = Keyspace.open(kscf.left).getColumnFamilyStore(kscf.right);
                 hasViews = !Iterables.isEmpty(View.findAll(kscf.left, kscf.right));
+                hasCdc = cfs.metadata.params.cdc;
 
                 Collection<SSTableReader> readers = task.sstables;
 
                 try (Refs<SSTableReader> refs = Refs.ref(readers))
                 {
-                    //We have a special path for views.
-                    //Since the view requires cleaning up any pre-existing state, we must put
-                    //all partitions through the same write path as normal mutations.
-                    //This also ensures any 2is are also updated
-                    if (hasViews)
+                    // We have a special path for views.
+                    // Since the view requires cleaning up any pre-existing state, we must put
+                    // all partitions through the same write path as normal mutations.
+                    // This also ensures any 2is are also updated.
+                    // For CDC-enabled tables, we want to ensure that the mutations are run through the CommitLog so they
+                    // can be archived by the CDC process on discard.
+                    if (hasViews || hasCdc)
                     {
                         for (SSTableReader reader : readers)
                         {
@@ -217,7 +221,9 @@ public class StreamReceiveTask extends StreamTask
                                     try (UnfilteredRowIterator rowIterator = scanner.next())
                                     {
                                         // MV *can* be applied unsafe as we flush below before transaction is done.
-                                        ks.apply(new Mutation(PartitionUpdate.fromIterator(rowIterator)), false, true, false);
+                                        // If the CFS has CDC, however, these updates need to be written to the CommitLog
+                                        // so they get archived into the cdc_raw folder
+                                        ks.apply(new Mutation(PartitionUpdate.fromIterator(rowIterator)), hasCdc, true, false);
                                     }
                                 }
                             }

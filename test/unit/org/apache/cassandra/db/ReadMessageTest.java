@@ -195,7 +195,9 @@ public class ReadMessageTest
 
         Checker checker = new Checker(cfs.metadata.getColumnDefinition(ByteBufferUtil.bytes("commit1")),
                                       cfsnocommit.metadata.getColumnDefinition(ByteBufferUtil.bytes("commit2")));
-        CommitLogTestReplayer.examineCommitLog(checker);
+
+        CommitLogTestReplayer replayer = new CommitLogTestReplayer(checker);
+        replayer.examineCommitLog();
 
         assertTrue(checker.commitLogMessageFound);
         assertFalse(checker.noCommitLogMessageFound);

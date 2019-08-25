@@ -203,8 +203,16 @@ public class Config
     public int commitlog_segment_size_in_mb = 32;
     public ParameterizedClass commitlog_compression;
     public int commitlog_max_compression_buffers_in_pool = 3;
+    public double commitlog_sync_group_window_in_ms = Double.NaN;
+    public Integer periodic_commitlog_sync_lag_block_in_ms;
 
     public Integer max_mutation_size_in_kb;
+
+    // Change-data-capture logs
+    public boolean cdc_enabled = false;
+    public String cdc_raw_directory;
+    public int cdc_total_space_in_mb = 0;
+    public int cdc_free_space_check_interval_ms = 250;
 
     @Deprecated
     public int commitlog_periodic_queue_size = -1;
@@ -384,7 +392,8 @@ public class Config
     public enum CommitLogSync
     {
         periodic,
-        batch
+        batch,
+        group
     }
     public enum InternodeCompression
     {

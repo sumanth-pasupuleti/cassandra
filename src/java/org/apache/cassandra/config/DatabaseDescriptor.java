@@ -1313,6 +1313,12 @@ public class DatabaseDescriptor
         return conf.commitlog_directory;
     }
 
+    @VisibleForTesting
+    public static void setCommitLogLocation(String value)
+    {
+        conf.commitlog_directory = value;
+    }
+
     public static ParameterizedClass getCommitLogCompression()
     {
         return conf.commitlog_compression;
@@ -1326,6 +1332,11 @@ public class DatabaseDescriptor
     public static int getCommitLogMaxCompressionBuffersInPool()
     {
         return conf.commitlog_max_compression_buffers_in_pool;
+    }
+
+    public static void setCommitLogMaxCompressionBuffersPerPool(int buffers)
+    {
+        conf.commitlog_max_compression_buffers_in_pool = buffers;
     }
 
     public static int getMaxMutationSize()
@@ -1533,6 +1544,24 @@ public class DatabaseDescriptor
     public static void setCommitLogSyncBatchWindow(double windowMillis)
     {
         conf.commitlog_sync_batch_window_in_ms = windowMillis;
+    }
+
+    public static long getPeriodicCommitLogSyncBlock()
+    {
+        Integer blockMillis = conf.periodic_commitlog_sync_lag_block_in_ms;
+        return blockMillis == null
+               ? (long)(getCommitLogSyncPeriod() * 1.5)
+               : blockMillis;
+    }
+
+    public static double getCommitLogSyncGroupWindow()
+    {
+        return conf.commitlog_sync_group_window_in_ms;
+    }
+
+    public static void setCommitLogSyncGroupWindow(double windowMillis)
+    {
+        conf.commitlog_sync_group_window_in_ms = windowMillis;
     }
 
     public static long getNativeTransportMaxConcurrentRequestsInBytesPerIp()
@@ -2138,6 +2167,37 @@ public class DatabaseDescriptor
     public static long getGCWarnThreshold()
     {
         return conf.gc_warn_threshold_in_ms;
+    }
+
+    public static boolean isCDCEnabled()
+    {
+        return conf.cdc_enabled;
+    }
+
+    public static void setCDCEnabled(boolean cdc_enabled)
+    {
+        conf.cdc_enabled = cdc_enabled;
+    }
+
+    public static String getCDCLogLocation()
+    {
+        return conf.cdc_raw_directory;
+    }
+
+    public static int getCDCSpaceInMB()
+    {
+        return conf.cdc_total_space_in_mb;
+    }
+
+    @VisibleForTesting
+    public static void setCDCSpaceInMB(int input)
+    {
+        conf.cdc_total_space_in_mb = input;
+    }
+
+    public static int getCDCDiskCheckInterval()
+    {
+        return conf.cdc_free_space_check_interval_ms;
     }
 
     public static boolean strictRuntimeChecks()

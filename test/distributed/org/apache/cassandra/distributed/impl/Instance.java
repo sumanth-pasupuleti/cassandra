@@ -287,7 +287,7 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
                 // Replay any CommitLogSegments found on disk
                 try
                 {
-                    CommitLog.instance.recover();
+                    CommitLog.instance.recoverSegmentsOnDisk();
                 }
                 catch (IOException e)
                 {

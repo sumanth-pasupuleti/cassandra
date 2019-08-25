@@ -33,8 +33,8 @@ import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.commitlog.CommitLog;
+import org.apache.cassandra.db.commitlog.CommitLogPosition;
 import org.apache.cassandra.db.commitlog.IntervalSet;
-import org.apache.cassandra.db.commitlog.ReplayPosition;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.db.filter.ClusteringIndexFilter;
 import org.apache.cassandra.db.filter.ColumnFilter;
@@ -49,7 +49,6 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.SSTableTxnWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.MetadataCollector;
-import org.apache.cassandra.io.util.DiskAwareRunnable;
 import org.apache.cassandra.service.ActiveRepairService;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -72,23 +71,23 @@ public class Memtable implements Comparable<Memtable>
 
     // the write barrier for directing writes to this memtable during a switch
     private volatile OpOrder.Barrier writeBarrier;
-    // the precise upper bound of ReplayPosition owned by this memtable
-    private volatile AtomicReference<ReplayPosition> commitLogUpperBound;
-    // the precise lower bound of ReplayPosition owned by this memtable; equal to its predecessor's commitLogUpperBound
-    private AtomicReference<ReplayPosition> commitLogLowerBound;
+    // the precise upper bound of CommitLogPosition owned by this memtable
+    private volatile AtomicReference<CommitLogPosition> commitLogUpperBound;
+    // the precise lower bound of CommitLogPosition owned by this memtable; equal to its predecessor's commitLogUpperBound
+    private AtomicReference<CommitLogPosition> commitLogLowerBound;
     // the approximate lower bound by this memtable; must be <= commitLogLowerBound once our predecessor
     // has been finalised, and this is enforced in the ColumnFamilyStore.setCommitLogUpperBound
-    private final ReplayPosition approximateCommitLogLowerBound = CommitLog.instance.getContext();
+    private final CommitLogPosition approximateCommitLogLowerBound = CommitLog.instance.getCurrentPosition();
 
     public int compareTo(Memtable that)
     {
         return this.approximateCommitLogLowerBound.compareTo(that.approximateCommitLogLowerBound);
     }
 
-    public static final class LastReplayPosition extends ReplayPosition
+    public static final class LastCommitLogPosition extends CommitLogPosition
     {
-        public LastReplayPosition(ReplayPosition copy) {
-            super(copy.segment, copy.position);
+        public LastCommitLogPosition(CommitLogPosition copy) {
+            super(copy.segmentId, copy.position);
         }
     }
 
@@ -111,7 +110,7 @@ public class Memtable implements Comparable<Memtable>
     private final StatsCollector statsCollector = new StatsCollector();
 
     // only to be used by init(), to setup the very first memtable for the cfs
-    public Memtable(AtomicReference<ReplayPosition> commitLogLowerBound, ColumnFamilyStore cfs)
+    public Memtable(AtomicReference<CommitLogPosition> commitLogLowerBound, ColumnFamilyStore cfs)
     {
         this.cfs = cfs;
         this.commitLogLowerBound = commitLogLowerBound;
@@ -147,7 +146,7 @@ public class Memtable implements Comparable<Memtable>
     }
 
     @VisibleForTesting
-    public void setDiscarding(OpOrder.Barrier writeBarrier, AtomicReference<ReplayPosition> lastReplayPosition)
+    public void setDiscarding(OpOrder.Barrier writeBarrier, AtomicReference<CommitLogPosition> lastReplayPosition)
     {
         assert this.writeBarrier == null;
         this.commitLogUpperBound = lastReplayPosition;
@@ -161,7 +160,7 @@ public class Memtable implements Comparable<Memtable>
     }
 
     // decide if this memtable should take the write, or if it should go to the next memtable
-    public boolean accepts(OpOrder.Group opGroup, ReplayPosition replayPosition)
+    public boolean accepts(OpOrder.Group opGroup, CommitLogPosition commitLogPosition)
     {
         // if the barrier hasn't been set yet, then this memtable is still taking ALL writes
         OpOrder.Barrier barrier = this.writeBarrier;
@@ -171,7 +170,7 @@ public class Memtable implements Comparable<Memtable>
         if (!barrier.isAfter(opGroup))
             return false;
         // if we aren't durable we are directed only by the barrier
-        if (replayPosition == null)
+        if (commitLogPosition == null)
             return true;
         while (true)
         {
@@ -180,22 +179,22 @@ public class Memtable implements Comparable<Memtable>
             // its current value and ours; if it HAS been finalised, we simply accept its judgement
             // this permits us to coordinate a safe boundary, as the boundary choice is made
             // atomically wrt our max() maintenance, so an operation cannot sneak into the past
-            ReplayPosition currentLast = commitLogUpperBound.get();
-            if (currentLast instanceof LastReplayPosition)
-                return currentLast.compareTo(replayPosition) >= 0;
-            if (currentLast != null && currentLast.compareTo(replayPosition) >= 0)
+            CommitLogPosition currentLast = commitLogUpperBound.get();
+            if (currentLast instanceof LastCommitLogPosition)
+                return currentLast.compareTo(commitLogPosition) >= 0;
+            if (currentLast != null && currentLast.compareTo(commitLogPosition) >= 0)
                 return true;
-            if (commitLogUpperBound.compareAndSet(currentLast, replayPosition))
+            if (commitLogUpperBound.compareAndSet(currentLast, commitLogPosition))
                 return true;
         }
     }
 
-    public ReplayPosition getCommitLogLowerBound()
+    public CommitLogPosition getCommitLogLowerBound()
     {
         return commitLogLowerBound.get();
     }
 
-    public ReplayPosition getCommitLogUpperBound()
+    public CommitLogPosition getCommitLogUpperBound()
     {
         return commitLogUpperBound.get();
     }
@@ -210,7 +209,7 @@ public class Memtable implements Comparable<Memtable>
         return partitions.isEmpty();
     }
 
-    public boolean mayContainDataBefore(ReplayPosition position)
+    public boolean mayContainDataBefore(CommitLogPosition position)
     {
         return approximateCommitLogLowerBound.compareTo(position) < 0;
     }

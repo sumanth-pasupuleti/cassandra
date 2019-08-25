@@ -62,6 +62,7 @@ public class CommitlogShutdownTest
     public void testShutdownWithPendingTasks() throws Exception
     {
         new Random().nextBytes(entropy);
+        DatabaseDescriptor.forceStaticInitialization();
         DatabaseDescriptor.setCommitLogCompression(new ParameterizedClass("LZ4Compressor", ImmutableMap.of()));
         DatabaseDescriptor.setCommitLogSegmentSize(1);
         DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);
@@ -71,9 +72,8 @@ public class CommitlogShutdownTest
                                     KeyspaceParams.simple(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, STANDARD1, 0, AsciiType.instance, BytesType.instance));
 
-                                    CompactionManager.instance.disableAutoCompaction();
+        CompactionManager.instance.disableAutoCompaction();
 
-        CommitLog.instance.resetUnsafe(true);
         ColumnFamilyStore cfs1 = Keyspace.open(KEYSPACE1).getColumnFamilyStore(STANDARD1);
 
         final Mutation m = new RowUpdateBuilder(cfs1.metadata, 0, "k")
@@ -88,11 +88,11 @@ public class CommitlogShutdownTest
         }
 
         // schedule discarding completed segments and immediately issue a shutdown
-        UUID cfid = m.getColumnFamilyIds().iterator().next();
-        CommitLog.instance.discardCompletedSegments(cfid, ReplayPosition.NONE, CommitLog.instance.getContext());
+        UUID tableId = m.getColumnFamilyIds().iterator().next();
+        CommitLog.instance.discardCompletedSegments(tableId, CommitLogPosition.NONE, CommitLog.instance.getCurrentPosition());
         CommitLog.instance.shutdownBlocking();
 
         // the shutdown should block until all logs except the currently active one and perhaps a new, empty one are gone
-        Assert.assertTrue(new File(CommitLog.instance.location).listFiles().length <= 2);
+        Assert.assertTrue(new File(DatabaseDescriptor.getCommitLogLocation()).listFiles().length <= 2);
     }
 }

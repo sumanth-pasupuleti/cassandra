@@ -531,6 +531,11 @@ public final class SchemaKeyspace
              .frozenMap("compaction", params.compaction.asMap())
              .frozenMap("compression", params.compression.asMap())
              .frozenMap("extensions", params.extensions);
+
+        // Only add CDC-enabled flag to schema if it's enabled on the node. This is to work around RTE's post-8099 if a 3.8+
+        // node sends table schema to a < 3.8 versioned node with an unknown column.
+        if (DatabaseDescriptor.isCDCEnabled())
+            adder.add("cdc", params.cdc);
     }
 
     public static Mutation makeUpdateTableMutation(KeyspaceMetadata keyspace,

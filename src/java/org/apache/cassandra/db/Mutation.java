@@ -64,6 +64,8 @@ public class Mutation implements IMutation
     // keep track of when mutation has started waiting for a MV partition lock
     public final AtomicLong viewLockAcquireStart = new AtomicLong(0);
 
+    private final boolean cdcEnabled;
+
     public Mutation(String keyspaceName, DecoratedKey key)
     {
         this(keyspaceName, key, new HashMap<>());
@@ -79,6 +81,11 @@ public class Mutation implements IMutation
         this.keyspaceName = keyspaceName;
         this.key = key;
         this.modifications = modifications;
+
+        boolean cdc = false;
+        for (PartitionUpdate pu : modifications.values())
+            cdc |= pu.metadata().params.cdc;
+        this.cdcEnabled = cdc;
     }
 
     public Mutation copy()
@@ -250,6 +257,11 @@ public class Mutation implements IMutation
         for (PartitionUpdate update : getPartitionUpdates())
             gcgs = Math.min(gcgs, update.metadata().params.gcGraceSeconds);
         return gcgs;
+    }
+
+    public boolean trackedByCDC()
+    {
+        return cdcEnabled;
     }
 
     public String toString()

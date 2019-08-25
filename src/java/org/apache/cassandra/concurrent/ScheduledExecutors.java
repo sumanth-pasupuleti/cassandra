@@ -28,6 +28,11 @@ import com.google.common.annotations.VisibleForTesting;
 public class ScheduledExecutors
 {
     /**
+     * This pool is used for periodic fast (sub-microsecond) tasks.
+     */
+    public static final DebuggableScheduledThreadPoolExecutor scheduledFastTasks = new DebuggableScheduledThreadPoolExecutor("ScheduledFastTasks");
+
+    /**
      * This pool is used for periodic short (sub-second) tasks.
      */
      public static final DebuggableScheduledThreadPoolExecutor scheduledTasks = new DebuggableScheduledThreadPoolExecutor("ScheduledTasks");

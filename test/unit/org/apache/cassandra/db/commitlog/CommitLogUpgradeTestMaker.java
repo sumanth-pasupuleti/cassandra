@@ -215,7 +215,7 @@ public class CommitLogUpgradeTestMaker
         int dataSize = 0;
         final CommitLog commitLog;
 
-        volatile ReplayPosition rp;
+        volatile CommitLogPosition rp;
 
         public CommitlogExecutor(CommitLog commitLog)
         {
