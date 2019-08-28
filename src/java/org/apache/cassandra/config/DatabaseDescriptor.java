@@ -554,6 +554,14 @@ public class DatabaseDescriptor
             conf.hints_directory += File.separator + "hints";
         }
 
+        if (conf.cdc_raw_directory == null)
+        {
+            conf.cdc_raw_directory = System.getProperty("cassandra.storagedir", null);
+            if (conf.cdc_raw_directory == null)
+                throw new ConfigurationException("cdc_raw_directory is missing and -Dcassandra.storagedir is not set", false);
+            conf.cdc_raw_directory += File.separator + "cdc_raw";
+        }
+
         if (conf.commitlog_total_space_in_mb == null)
         {
             int preferredSize = 8192;
@@ -579,6 +587,38 @@ public class DatabaseDescriptor
             {
                 conf.commitlog_total_space_in_mb = preferredSize;
             }
+        }
+
+        if (conf.cdc_total_space_in_mb == 0)
+        {
+            int preferredSize = 4096;
+            int minSize = 0;
+            try
+            {
+                // use 1/8th of available space.  See discussion on #10013 and #10199 on the CL, taking half that for CDC
+                minSize = Ints.saturatedCast((guessFileStore(conf.cdc_raw_directory).getTotalSpace() / 1048576) / 8);
+            }
+            catch (IOException e)
+            {
+                logger.debug("Error checking disk space", e);
+                throw new ConfigurationException(String.format("Unable to check disk space available to %s. Perhaps the Cassandra user does not have the necessary permissions",
+                                                               conf.cdc_raw_directory), e);
+            }
+            if (minSize < preferredSize)
+            {
+                logger.warn("Small cdc volume detected at {}; setting cdc_total_space_in_mb to {}.  You can override this in cassandra.yaml",
+                            conf.cdc_raw_directory, minSize);
+                conf.cdc_total_space_in_mb = minSize;
+            }
+            else
+            {
+                conf.cdc_total_space_in_mb = preferredSize;
+            }
+        }
+
+        if (conf.cdc_enabled)
+        {
+            logger.info("cdc_enabled is true. Starting casssandra node with Change-Data-Capture enabled.");
         }
 
         if (conf.saved_caches_directory == null)
@@ -926,6 +966,13 @@ public class DatabaseDescriptor
             if (conf.saved_caches_directory == null)
                 throw new ConfigurationException("saved_caches_directory must be specified", false);
             FileUtils.createDirectory(conf.saved_caches_directory);
+
+            if (conf.cdc_enabled)
+            {
+                if (conf.cdc_raw_directory == null)
+                    throw new ConfigurationException("cdc_raw_directory must be specified", false);
+                FileUtils.createDirectory(conf.cdc_raw_directory);
+            }
         }
         catch (ConfigurationException e)
         {

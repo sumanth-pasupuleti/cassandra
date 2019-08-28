@@ -21,11 +21,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -64,7 +61,7 @@ public class Mutation implements IMutation
     // keep track of when mutation has started waiting for a MV partition lock
     public final AtomicLong viewLockAcquireStart = new AtomicLong(0);
 
-    private final boolean cdcEnabled;
+    private boolean cdcEnabled;
 
     public Mutation(String keyspaceName, DecoratedKey key)
     {
@@ -82,10 +79,7 @@ public class Mutation implements IMutation
         this.key = key;
         this.modifications = modifications;
 
-        boolean cdc = false;
-        for (PartitionUpdate pu : modifications.values())
-            cdc |= pu.metadata().params.cdc;
-        this.cdcEnabled = cdc;
+        setCdc(this);
     }
 
     public Mutation copy()
@@ -100,6 +94,9 @@ public class Mutation implements IMutation
 
         Mutation copy = copy();
         copy.modifications.keySet().removeAll(cfIds);
+
+        setCdc(copy);
+
         return copy;
     }
 
@@ -141,7 +138,17 @@ public class Mutation implements IMutation
         if (prev != null)
             // developer error
             throw new IllegalArgumentException("Table " + update.metadata().cfName + " already has modifications in this mutation: " + prev);
+
+        setCdc(this);
         return this;
+    }
+
+    private void setCdc(Mutation mutation)
+    {
+        boolean cdc = false;
+        for (PartitionUpdate pu : mutation.modifications.values())
+            cdc |= pu.metadata().params.cdc;
+        mutation.cdcEnabled = cdc;
     }
 
     public PartitionUpdate get(CFMetaData cfm)
