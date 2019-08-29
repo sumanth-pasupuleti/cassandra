@@ -1038,7 +1038,7 @@ public final class SchemaKeyspace
         return TableParams.builder()
                           .bloomFilterFpChance(row.getDouble("bloom_filter_fp_chance"))
                           .caching(CachingParams.fromMap(row.getFrozenTextMap("caching")))
-                          .cdc(row.getBoolean("cdc"))
+                          .cdc(row.has("cdc") && row.getBoolean("cdc"))
                           .comment(row.getString("comment"))
                           .compaction(CompactionParams.fromMap(row.getFrozenTextMap("compaction")))
                           .compression(CompressionParams.fromMap(row.getFrozenTextMap("compression")))

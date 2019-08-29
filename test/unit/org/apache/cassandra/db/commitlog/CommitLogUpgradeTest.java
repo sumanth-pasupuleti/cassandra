@@ -80,12 +80,6 @@ public class CommitLogUpgradeTest
     }
 
     @Test
-    public void test20() throws Exception
-    {
-        testRestore(DATA_DIR + "2.0");
-    }
-
-    @Test
     public void test21() throws Exception
     {
         testRestore(DATA_DIR + "2.1");

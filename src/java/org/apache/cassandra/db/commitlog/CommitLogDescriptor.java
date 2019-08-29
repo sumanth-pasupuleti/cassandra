@@ -148,15 +148,19 @@ public class CommitLogDescriptor
     {
         CRC32 checkcrc = new CRC32();
         int version = input.readInt();
-        if (version < VERSION_30)
-            throw new IllegalArgumentException("Unsupported pre-3.0 commit log found; cannot read.");
 
         updateChecksumInt(checkcrc, version);
         long id = input.readLong();
         updateChecksumInt(checkcrc, (int) (id & 0xFFFFFFFFL));
         updateChecksumInt(checkcrc, (int) (id >>> 32));
-        int parametersLength = input.readShort() & 0xFFFF;
-        updateChecksumInt(checkcrc, parametersLength);
+        int parametersLength = 0;
+
+        if (version >= VERSION_22)
+        {
+            parametersLength = input.readShort() & 0xFFFF;
+            updateChecksumInt(checkcrc, parametersLength);
+        }
+
         // This should always succeed as parametersLength cannot be too long even for a
         // corrupt segment file.
         byte[] parametersBytes = new byte[parametersLength];

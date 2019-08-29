@@ -345,7 +345,10 @@ public final class FileUtils
 
     public static void clean(ByteBuffer buffer)
     {
-        if (isCleanerAvailable() && buffer.isDirect())
+        if (null == buffer|| !buffer.isDirect())
+            return;
+
+        if (isCleanerAvailable())
         {
             DirectBuffer db = (DirectBuffer) buffer;
             if (db.cleaner() != null)
