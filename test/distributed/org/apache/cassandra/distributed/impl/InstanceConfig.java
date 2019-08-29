@@ -73,7 +73,7 @@ public class InstanceConfig implements IInstanceConfig
                            String[] data_file_directories,
                            String commitlog_directory,
                            String hints_directory,
-//                           String cdc_directory,
+                           String cdc_raw_directory,
                            String initial_token)
     {
         this.num = num;
@@ -86,7 +86,7 @@ public class InstanceConfig implements IInstanceConfig
                 .set("data_file_directories", data_file_directories)
                 .set("commitlog_directory", commitlog_directory)
                 .set("hints_directory", hints_directory)
-//                .set("cdc_directory", cdc_directory)
+                .set("cdc_raw_directory", cdc_raw_directory)
                 .set("initial_token", initial_token)
                 .set("partitioner", "org.apache.cassandra.dht.Murmur3Partitioner")
                 .set("concurrent_writes", 2)
@@ -211,7 +211,7 @@ public class InstanceConfig implements IInstanceConfig
                                   new String[] { String.format("%s/node%d/data", root, nodeNum) },
                                   String.format("%s/node%d/commitlog", root, nodeNum),
                                   String.format("%s/node%d/hints", root, nodeNum),
-//                                  String.format("%s/node%d/cdc", root, nodeNum),
+                                  String.format("%s/node%d/cdc_raw", root, nodeNum),
                                   token);
     }
 
