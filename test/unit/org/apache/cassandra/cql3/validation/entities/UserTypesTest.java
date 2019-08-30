@@ -33,6 +33,7 @@ public class UserTypesTest extends CQLTester
     public static void setUpClass()
     {
         // Selecting partitioner for a table is not exposed on CREATE TABLE.
+        CQLTester.setUpClass();
         StorageService.instance.setPartitionerUnsafe(ByteOrderedPartitioner.instance);
     }
 
