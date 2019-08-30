@@ -64,6 +64,7 @@ public class LegacySchemaMigratorTest
     @Test
     public void testMigrate() throws IOException
     {
+        CQLTester.setUpClass();
         CQLTester.cleanupAndLeaveDirs();
 
         Keyspaces expected = keyspacesToMigrate();
