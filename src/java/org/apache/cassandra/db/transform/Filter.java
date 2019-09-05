@@ -35,7 +35,7 @@ public final class Filter extends Transformation
     }
 
     @Override
-    protected RowIterator applyToPartition(BaseRowIterator iterator)
+    public RowIterator applyToPartition(BaseRowIterator iterator)
     {
         return iterator instanceof UnfilteredRows
              ? new FilteredRows(this, (UnfilteredRows) iterator)
