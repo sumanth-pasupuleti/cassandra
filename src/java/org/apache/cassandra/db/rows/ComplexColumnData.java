@@ -165,6 +165,11 @@ public class ComplexColumnData extends ColumnData implements Iterable<Cell>
         return transformAndFilter(newDeletion, (cell) -> cell.purge(purger, nowInSec));
     }
 
+    public ComplexColumnData withOnlyQueriedData(ColumnFilter filter)
+    {
+        return transformAndFilter(complexDeletion, (cell) -> filter.fetchedCellIsQueried(column, cell.path()) ? null : cell);
+    }
+
     private ComplexColumnData transformAndFilter(DeletionTime newDeletion, Function<? super Cell, ? extends Cell> function)
     {
         Object[] transformed = BTree.transformAndFilter(cells, function);

@@ -281,6 +281,21 @@ public class BTreeRow extends AbstractRow
         });
     }
 
+    public Row withOnlyQueriedData(ColumnFilter filter)
+    {
+        if (filter.allFetchedColumnsAreQueried())
+            return this;
+
+        return transformAndFilter(primaryKeyLivenessInfo, deletion, (cd) -> {
+
+            ColumnDefinition column = cd.column();
+            if (column.isComplex())
+                return ((ComplexColumnData)cd).withOnlyQueriedData(filter);
+
+            return filter.fetchedColumnIsQueried(column) ? cd : null;
+        });
+    }
+
     public boolean hasComplex()
     {
         // We start by the end cause we know complex columns sort after the simple ones

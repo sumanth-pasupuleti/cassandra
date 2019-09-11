@@ -119,6 +119,64 @@ public class ColumnFilter
         return fetched;
     }
 
+    /**
+     * The columns actually queried by the user.
+     * <p>
+     * Note that this is in general not all the columns that are fetched internally (see {@link #fetchedColumns}).
+     */
+    public PartitionColumns queriedColumns()
+    {
+        return queried == null ? fetched : queried;
+    }
+
+    /**
+     * Whether _fetched_ == _queried_ for this filter, and so if the {@code isQueried()} methods
+     * can return {@code false} for some column/cell.
+     */
+    public boolean allFetchedColumnsAreQueried()
+    {
+        return !isFetchAll || queried == null;
+    }
+
+    /**
+     * Whether the provided column, which is assumed to be _fetched_ by this filter (so the caller must guarantee
+     * that {@code fetches(column) == true}, is also _queried_ by the user.
+     *
+     * !WARNING! please be sure to understand the difference between _fetched_ and _queried_
+     * columns that this class made before using this method. If unsure, you probably want
+     * to use the {@link #fetches} method.
+     */
+    public boolean fetchedColumnIsQueried(ColumnDefinition column)
+    {
+        return !isFetchAll || queried == null || queried.contains(column);
+    }
+
+    /**
+     * Whether the provided complex cell (identified by its column and path), which is assumed to be _fetched_ by
+     * this filter, is also _queried_ by the user.
+     *
+     * !WARNING! please be sure to understand the difference between _fetched_ and _queried_
+     * columns that this class made before using this method. If unsure, you probably want
+     * to use the {@link #fetches} method.
+     */
+    public boolean fetchedCellIsQueried(ColumnDefinition column, CellPath path)
+    {
+        assert path != null;
+        if (!isFetchAll || subSelections == null)
+            return true;
+
+        SortedSet<ColumnSubselection> s = subSelections.get(column.name);
+        // No subsection for this column means everything is queried
+        if (s.isEmpty())
+            return true;
+
+        for (ColumnSubselection subSel : s)
+            if (subSel.compareInclusionOf(path) == 0)
+                return true;
+
+        return false;
+    }
+
     public boolean includesAllColumns()
     {
         return isFetchAll;

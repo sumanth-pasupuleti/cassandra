@@ -104,6 +104,17 @@ public abstract class Transformation<I extends BaseRowIterator<?>>
         return deletionTime;
     }
 
+    /**
+     * Applied to the {@code PartitionColumns} of any rows iterator.
+     *
+     * NOTE: same remark than for applyToDeletion: it is only applied to the first iterator in a sequence of iterators
+     * filled by MoreContents.
+     */
+    protected PartitionColumns applyToPartitionColumns(PartitionColumns columns)
+    {
+        return columns;
+    }
+
 
     //******************************************************
     //          Static Application Methods

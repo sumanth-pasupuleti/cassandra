@@ -52,6 +52,7 @@ final class UnfilteredRows extends BaseRows<Unfiltered, UnfilteredRowIterator> i
     void add(Transformation add)
     {
         super.add(add);
+        columns = add.applyToPartitionColumns(columns);
         partitionLevelDeletion = add.applyToDeletion(partitionLevelDeletion);
     }
 

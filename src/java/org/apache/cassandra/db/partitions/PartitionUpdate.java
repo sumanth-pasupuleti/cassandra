@@ -219,6 +219,23 @@ public class PartitionUpdate extends AbstractBTreePartition
         return new PartitionUpdate(iterator.metadata(), iterator.partitionKey(), holder, deletionInfo, false);
     }
 
+    /**
+     * Turns the given iterator into an update.
+     *
+     * @param iterator the iterator to turn into updates.
+     * @param filter the column filter used when querying {@code iterator}. This is used to make
+     * sure we don't include data for which the value has been skipped while reading (as we would
+     * then be writing something incorrect).
+     *
+     * Warning: this method does not close the provided iterator, it is up to
+     * the caller to close it.
+     */
+    @SuppressWarnings("resource")
+    public static PartitionUpdate fromIterator(UnfilteredRowIterator iterator, ColumnFilter filter)
+    {
+        return fromIterator(UnfilteredRowIterators.withOnlyQueriedData(iterator, filter));
+    }
+
     public static PartitionUpdate fromIterator(RowIterator iterator)
     {
         MutableDeletionInfo deletionInfo = MutableDeletionInfo.live();
