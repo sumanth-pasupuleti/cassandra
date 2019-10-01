@@ -102,7 +102,7 @@ public class RepairOptionTest
     @Test
     public void testPrWithLocalParseOptions()
     {
-        DatabaseDescriptor.forceStaticInitialization();
+        DatabaseDescriptor.daemonInitialization();
 
         Map<String, String> options = new HashMap<>();
         options.put(RepairOption.PARALLELISM_KEY, "parallel");

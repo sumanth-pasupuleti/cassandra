@@ -51,7 +51,7 @@ public class DatabaseDescriptorTest
     @BeforeClass
     public static void setupDatabaseDescriptor()
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @Test

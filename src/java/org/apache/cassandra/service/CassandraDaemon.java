@@ -564,15 +564,7 @@ public class CassandraDaemon
         // Do not put any references to DatabaseDescriptor above the forceStaticInitialization call.
         try
         {
-            try
-            {
-                DatabaseDescriptor.forceStaticInitialization();
-                DatabaseDescriptor.setDaemonInitialized();
-            }
-            catch (ExceptionInInitializerError e)
-            {
-                throw e.getCause();
-            }
+            applyConfig();
 
             MBeanWrapper.instance.registerMBean(new StandardMBean(new NativeAccess(), NativeAccessMBean.class), MBEAN_NAME, MBeanWrapper.OnException.LOG);
 
@@ -624,6 +616,11 @@ public class CassandraDaemon
                 exitOrFail(3, "Exception encountered during startup: " + e.getMessage());
             }
         }
+    }
+
+    public void applyConfig()
+    {
+        DatabaseDescriptor.daemonInitialization();
     }
 
     public void startNativeTransport()

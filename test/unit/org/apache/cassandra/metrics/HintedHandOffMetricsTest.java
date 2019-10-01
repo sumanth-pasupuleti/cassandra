@@ -44,7 +44,7 @@ public class HintedHandOffMetricsTest
     @BeforeClass
     public static void initDD()
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @Test

@@ -35,7 +35,7 @@ public final class Util
     {
         try
         {
-            DatabaseDescriptor.forceStaticInitialization();
+            DatabaseDescriptor.daemonInitialization();
         }
         catch (ExceptionInInitializerError e)
         {

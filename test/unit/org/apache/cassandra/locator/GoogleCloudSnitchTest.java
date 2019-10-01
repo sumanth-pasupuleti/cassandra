@@ -47,7 +47,7 @@ public class GoogleCloudSnitchTest
     public static void setup() throws Exception
     {
         System.setProperty(Gossiper.Props.DISABLE_THREAD_VALIDATION, "true");
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
         SchemaLoader.mkdirs();
         SchemaLoader.cleanup();
         Keyspace.setInitialized();

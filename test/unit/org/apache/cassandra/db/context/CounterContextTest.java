@@ -55,7 +55,7 @@ public class CounterContextTest
     @BeforeClass
     public static void setupDD()
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @Test

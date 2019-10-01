@@ -327,7 +327,7 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
             {
                 mkdirs();
 
-                DatabaseDescriptor.setDaemonInitialized();
+                DatabaseDescriptor.daemonInitialization();
                 DatabaseDescriptor.createAllDirectories();
 
                 // We need to  persist this as soon as possible after startup checks.

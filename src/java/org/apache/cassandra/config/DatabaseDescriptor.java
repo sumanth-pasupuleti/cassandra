@@ -25,6 +25,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.Supplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
@@ -109,38 +110,55 @@ public class DatabaseDescriptor
     // turns some warnings into exceptions for testing
     private static final boolean strictRuntimeChecks = Boolean.getBoolean("cassandra.strict.runtime.checks");
 
+    public static void daemonInitialization() throws ConfigurationException
+    {
+        daemonInitialization(DatabaseDescriptor::loadConfig);
+    }
+
+    public static void daemonInitialization(Supplier<Config> config) throws ConfigurationException
+    {
+        // Some unit tests require this :(
+        if (daemonInitialized)
+            return;
+        daemonInitialized = true;
+
+        if (Config.isClientMode())
+        {
+            conf = new Config();
+        }
+        else
+        {
+            applyConfig(loadConfig());
+        }
+    }
+
     public static boolean isDaemonInitialized()
     {
         return daemonInitialized;
     }
 
-    public static void setDaemonInitialized()
-    {
-        daemonInitialized = true;
-    }
-
-    public static void forceStaticInitialization() {}
-    static
-    {
-        // In client mode, we use a default configuration. Note that the fields of this class will be
-        // left unconfigured however (the partitioner or localDC will be null for instance) so this
-        // should be used with care.
-        try
-        {
-            if (Config.isClientMode())
-            {
-                conf = new Config();
-            }
-            else
-            {
-                applyConfig(loadConfig());
-            }
-        }
-        catch (Exception e)
-        {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+//    public static void forceStaticInitialization() {}
+//    static
+//    {
+//        // In client mode, we use a default configuration. Note that the fields of this class will be
+//        // left unconfigured however (the partitioner or localDC will be null for instance) so this
+//        // should be used with care.
+//        try
+//        {
+//            if (Config.isClientMode())
+//            {
+//                conf = new Config();
+//            }
+//            else
+//            {
+//                applyConfig(loadConfig());
+//            }
+//        }
+//        catch (Exception e)
+//        {
+//            throw new ExceptionInInitializerError(e);
+//        }
+//    }
 
     public static Config loadConfig() throws ConfigurationException
     {

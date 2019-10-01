@@ -55,7 +55,7 @@ public class SystemKeyspaceTest
     @BeforeClass
     public static void prepSnapshotTracker()
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
 
         if (FBUtilities.isWindows())
             WindowsFailedSnapshotTracker.deleteOldSnapshots();

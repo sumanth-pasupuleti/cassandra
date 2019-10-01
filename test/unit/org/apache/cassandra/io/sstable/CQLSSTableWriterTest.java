@@ -56,7 +56,7 @@ public class CQLSSTableWriterTest
     @BeforeClass
     public static void setup() throws Exception
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
         SchemaLoader.cleanupAndLeaveDirs();
         Keyspace.setInitialized();
         StorageService.instance.initServer();

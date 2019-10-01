@@ -37,7 +37,7 @@ public class StreamStateStoreTest
     @BeforeClass
     public static void initDD()
     {
-        DatabaseDescriptor.setDaemonInitialized();
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @Test

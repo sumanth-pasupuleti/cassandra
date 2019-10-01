@@ -106,7 +106,7 @@ public class CoalescingStrategiesTest
     @BeforeClass
     public static void initDD()
     {
-        DatabaseDescriptor.forceStaticInitialization();
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @SuppressWarnings({ "serial" })
