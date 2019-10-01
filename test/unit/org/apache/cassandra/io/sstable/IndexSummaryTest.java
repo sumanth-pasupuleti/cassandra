@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.junit.Assume;
 
 import org.apache.cassandra.Util;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
@@ -46,15 +47,17 @@ import static org.junit.Assert.*;
 public class IndexSummaryTest
 {
     private final static Random random = new Random();
-    private final static IPartitioner partitioner = Util.testPartitioner();
 
     @BeforeClass
     public static void setup()
     {
+        DatabaseDescriptor.daemonInitialization();
         final long seed = System.nanoTime();
         System.out.println("Using seed: " + seed);
         random.setSeed(seed);
     }
+
+    IPartitioner partitioner = Util.testPartitioner();
 
     @Test
     public void testIndexSummaryKeySizes() throws IOException

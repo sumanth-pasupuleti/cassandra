@@ -62,6 +62,7 @@ public class CommitLogChainedMarkersTest
     action = "$flush = false")
     public void replayCommitLogWithoutFlushing() throws IOException
     {
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setCommitLogSegmentSize(5);
         DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);
         DatabaseDescriptor.setCommitLogSyncPeriod(10000 * 1000);

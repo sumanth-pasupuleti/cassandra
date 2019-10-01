@@ -78,6 +78,7 @@ public class CommitLogSegmentBackpressureTest
         // Perform all initialization before making CommitLog.Sync blocking
         // Doing the initialization within the method guarantee that Byteman has performed its injections when we start
         new Random().nextBytes(entropy);
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setCommitLogCompression(new ParameterizedClass("LZ4Compressor", ImmutableMap.of()));
         DatabaseDescriptor.setCommitLogSegmentSize(1);
         DatabaseDescriptor.setCommitLogSync(CommitLogSync.periodic);

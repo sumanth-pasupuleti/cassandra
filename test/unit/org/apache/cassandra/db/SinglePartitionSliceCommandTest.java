@@ -43,6 +43,7 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -93,6 +94,8 @@ public class SinglePartitionSliceCommandTest
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
+        DatabaseDescriptor.daemonInitialization();
+
         cfm = CFMetaData.Builder.create(KEYSPACE, TABLE)
                                 .addPartitionKey("k", UTF8Type.instance)
                                 .addStaticColumn("s", UTF8Type.instance)

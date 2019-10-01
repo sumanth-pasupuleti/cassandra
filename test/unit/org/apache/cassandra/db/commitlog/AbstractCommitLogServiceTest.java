@@ -39,6 +39,7 @@ public class AbstractCommitLogServiceTest
     @BeforeClass
     public static void before()
     {
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);
         DatabaseDescriptor.setCommitLogSyncPeriod(10 * 1000);
     }

@@ -20,10 +20,16 @@
  */
 package org.apache.cassandra.net;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+
+import org.apache.cassandra.config.DatabaseDescriptor;
 
 import static org.junit.Assert.assertEquals;
 
@@ -32,6 +38,12 @@ public class MessagingServiceTest
     private final MessagingService messagingService = MessagingService.test();
 
     private static int metricScopeId = 0;
+
+    @BeforeClass
+    public static void beforeClass() throws UnknownHostException
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
 
     @Before
     public void before() {

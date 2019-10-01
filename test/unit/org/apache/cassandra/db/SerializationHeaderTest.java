@@ -21,6 +21,7 @@ package org.apache.cassandra.db;
 import com.google.common.io.Files;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.db.lifecycle.LifecycleTransaction;
@@ -53,6 +54,11 @@ import java.util.function.Function;
 public class SerializationHeaderTest
 {
     private static String KEYSPACE = "SerializationHeaderTest";
+
+    static
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
 
     @Test
     public void testWrittenAsDifferentKind() throws Exception

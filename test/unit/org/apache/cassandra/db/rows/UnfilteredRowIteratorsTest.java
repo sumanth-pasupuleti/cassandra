@@ -27,6 +27,7 @@ import junit.framework.Assert;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.BufferDecoratedKey;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.DeletionTime;
@@ -46,6 +47,7 @@ public class UnfilteredRowIteratorsTest
 
     static
     {
+        DatabaseDescriptor.daemonInitialization();
         metadata = CFMetaData.Builder.create("", "")
                              .addPartitionKey("pk", Int32Type.instance)
                                      .addClusteringColumn("ck", Int32Type.instance)

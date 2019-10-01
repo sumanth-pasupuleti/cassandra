@@ -46,6 +46,7 @@ public class CQLSSTableWriterClientTest
     {
         this.testDirectory = Files.createTempDir();
         Config.setClientMode(true);
+        DatabaseDescriptor.daemonInitialization();
     }
 
     @After

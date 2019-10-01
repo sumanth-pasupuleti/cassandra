@@ -26,6 +26,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.ClusteringPrefix.Kind;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -69,6 +70,8 @@ public final class PurgeFunctionTest
     @Before
     public void setUp()
     {
+        DatabaseDescriptor.setPartitionerUnsafe(Murmur3Partitioner.instance);
+
         metadata =
             CFMetaData.Builder
                       .create(KEYSPACE, TABLE)

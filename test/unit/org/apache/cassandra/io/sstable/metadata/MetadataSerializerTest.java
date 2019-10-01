@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
@@ -47,6 +48,12 @@ import static org.junit.Assert.assertEquals;
 
 public class MetadataSerializerTest
 {
+    @BeforeClass
+    public static void initDD()
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
+
     @Test
     public void testSerialization() throws IOException
     {

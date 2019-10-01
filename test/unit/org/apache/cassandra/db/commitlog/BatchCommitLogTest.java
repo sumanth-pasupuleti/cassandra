@@ -28,6 +28,7 @@ public class BatchCommitLogTest
     @BeforeClass
     public static void before()
     {
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.batch);
         DatabaseDescriptor.setCommitLogSyncBatchWindow(CL_BATCH_SYNC_WINDOW);
 

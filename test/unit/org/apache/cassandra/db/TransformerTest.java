@@ -26,6 +26,7 @@ import org.junit.Test;
 import junit.framework.Assert;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.db.marshal.Int32Type;
 import org.apache.cassandra.db.rows.*;
@@ -38,7 +39,11 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 
 public class TransformerTest
 {
-
+    static
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
+    
     static final CFMetaData metadata = metadata();
     static final DecoratedKey partitionKey = new BufferDecoratedKey(new Murmur3Partitioner.LongToken(0L), ByteBufferUtil.EMPTY_BYTE_BUFFER);
     static final Row staticRow = BTreeRow.singleCellRow(Clustering.STATIC_CLUSTERING, new BufferCell(metadata.partitionColumns().columns(true).getSimple(0), 0L, 0, 0, ByteBufferUtil.bytes(-1), null));

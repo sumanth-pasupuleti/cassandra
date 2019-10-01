@@ -57,6 +57,7 @@ public class RepairMessageSerializationsTest
     @BeforeClass
     public static void before()
     {
+        DatabaseDescriptor.daemonInitialization();
         originalPartitioner = StorageService.instance.setPartitionerUnsafe(Murmur3Partitioner.instance);
     }
 

@@ -60,6 +60,7 @@ public class PagingTest
     public static void setup() throws Exception
     {
         DatabaseDescriptor.setPartitionerUnsafe(Murmur3Partitioner.instance);
+        DatabaseDescriptor.daemonInitialization();
         EmbeddedCassandraService cassandra = new EmbeddedCassandraService();
         cassandra.start();
 

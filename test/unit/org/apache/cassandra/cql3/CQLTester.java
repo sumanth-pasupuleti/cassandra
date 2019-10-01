@@ -96,6 +96,8 @@ public abstract class CQLTester
     public static final List<Integer> PROTOCOL_VERSIONS;
     static
     {
+        DatabaseDescriptor.daemonInitialization();
+
         // The latest versions might not be supported yet by the java driver
         ImmutableList.Builder<Integer> builder = ImmutableList.builder();
         for (int version = Server.MIN_SUPPORTED_VERSION; version <= Server.CURRENT_VERSION; version++)
@@ -149,6 +151,8 @@ public abstract class CQLTester
         if (isServerPrepared)
             return;
 
+        DatabaseDescriptor.daemonInitialization();
+
         // Cleanup first
         try
         {
@@ -170,7 +174,6 @@ public abstract class CQLTester
 
         ThreadAwareSecurityManager.install();
 
-        DatabaseDescriptor.daemonInitialization();
         Keyspace.setInitialized();
         isServerPrepared = true;
     }

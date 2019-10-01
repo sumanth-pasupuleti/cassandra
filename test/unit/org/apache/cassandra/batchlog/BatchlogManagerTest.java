@@ -72,6 +72,7 @@ public class BatchlogManagerTest
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
+        DatabaseDescriptor.daemonInitialization();
         sw = Util.switchPartitioner(Murmur3Partitioner.instance);
         SchemaLoader.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE1,

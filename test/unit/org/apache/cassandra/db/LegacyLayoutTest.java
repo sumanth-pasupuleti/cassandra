@@ -73,6 +73,7 @@ public class LegacyLayoutTest
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setPartitionerUnsafe(Murmur3Partitioner.instance);
         SchemaLoader.loadSchema();
         SchemaLoader.createKeyspace(KEYSPACE, KeyspaceParams.simple(1));

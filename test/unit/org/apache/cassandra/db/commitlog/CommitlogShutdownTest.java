@@ -62,6 +62,7 @@ public class CommitlogShutdownTest
     public void testShutdownWithPendingTasks() throws Exception
     {
         new Random().nextBytes(entropy);
+        DatabaseDescriptor.daemonInitialization();
         DatabaseDescriptor.setCommitLogCompression(new ParameterizedClass("LZ4Compressor", ImmutableMap.of()));
         DatabaseDescriptor.setCommitLogSegmentSize(1);
         DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);

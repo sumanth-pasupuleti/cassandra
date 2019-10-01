@@ -40,7 +40,13 @@ public class OutboundTcpConnectionTest
     final static Verb VERB_DROPPABLE = Verb.MUTATION; // Droppable, 2s timeout
     final static Verb VERB_NONDROPPABLE = Verb.GOSSIP_DIGEST_ACK; // Not droppable
 
-    final static long NANOS_FOR_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getTimeout(VERB_DROPPABLE)*2);
+    final static long NANOS_FOR_TIMEOUT;
+
+    static
+    {
+        DatabaseDescriptor.daemonInitialization();
+        NANOS_FOR_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(DatabaseDescriptor.getTimeout(VERB_DROPPABLE)*2);
+    }
 
     
     /**

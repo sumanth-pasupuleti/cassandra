@@ -21,10 +21,12 @@ package org.apache.cassandra.service.pager;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.*;
 import org.apache.cassandra.db.rows.*;
@@ -38,6 +40,12 @@ import static org.junit.Assert.assertTrue;
 
 public class PagingStateTest
 {
+    @BeforeClass
+    public static void setupDD()
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
+
     private PagingState makeSomePagingState(int protocolVersion)
     {
         return makeSomePagingState(protocolVersion, 0);

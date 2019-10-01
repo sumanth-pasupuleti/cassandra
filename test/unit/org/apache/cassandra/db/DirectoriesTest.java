@@ -66,6 +66,7 @@ public class DirectoriesTest
     @BeforeClass
     public static void beforeClass() throws IOException
     {
+        DatabaseDescriptor.daemonInitialization();
         FileUtils.setFSErrorHandler(new DefaultFSErrorHandler());
         for (String table : TABLES)
         {

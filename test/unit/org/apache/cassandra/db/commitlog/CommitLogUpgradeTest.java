@@ -37,6 +37,7 @@ import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.rows.Cell;
@@ -51,6 +52,11 @@ import org.apache.cassandra.db.commitlog.CommitLogReplayer.CommitLogReplayExcept
 
 public class CommitLogUpgradeTest
 {
+    static
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
+
     static final String DATA_DIR = "test/data/legacy-commitlog/";
     static final String PROPERTIES_FILE = "hash.txt";
     static final String CFID_PROPERTY = "cfid";

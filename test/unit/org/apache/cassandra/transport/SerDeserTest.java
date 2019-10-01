@@ -23,7 +23,10 @@ import java.util.*;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
+
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.db.marshal.*;
 import org.apache.cassandra.serializers.CollectionSerializer;
@@ -42,6 +45,13 @@ import static org.junit.Assert.assertNotSame;
  */
 public class SerDeserTest
 {
+    @BeforeClass
+    public static void setupDD()
+    {
+        // required for making the paging state
+        DatabaseDescriptor.daemonInitialization();
+    }
+
     @Test
     public void collectionSerDeserTest() throws Exception
     {

@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.config.Config;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.db.rows.SliceableUnfilteredRowIterator;
@@ -56,6 +57,7 @@ public class ClientModeSSTableTest
     public static void defineSchema() throws ConfigurationException
     {
         Config.setClientMode(true);
+        DatabaseDescriptor.daemonInitialization();
 
         metadata = CFMetaData.Builder.createDense(KSNAME, CFNAME, false, false)
                                                 .addPartitionKey("key", BytesType.instance)

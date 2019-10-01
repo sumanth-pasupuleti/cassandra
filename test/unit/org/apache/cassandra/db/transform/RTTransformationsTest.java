@@ -65,6 +65,7 @@ public final class RTTransformationsTest
                       .addClusteringColumn("ck0", UTF8Type.instance)
                       .addClusteringColumn("ck1", UTF8Type.instance)
                       .addClusteringColumn("ck2", UTF8Type.instance)
+                      .withPartitioner(Murmur3Partitioner.instance)
                       .build();
         key = Murmur3Partitioner.instance.decorateKey(bytes("key"));
     }

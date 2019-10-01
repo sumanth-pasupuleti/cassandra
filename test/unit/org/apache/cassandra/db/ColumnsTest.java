@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.junit.AfterClass;
@@ -47,6 +48,10 @@ import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 
 public class ColumnsTest
 {
+    static
+    {
+        DatabaseDescriptor.daemonInitialization();
+    }
 
     private static final CFMetaData cfMetaData = MockSchema.newCFS().metadata;
 
