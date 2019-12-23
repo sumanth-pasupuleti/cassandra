@@ -44,6 +44,7 @@ import org.apache.cassandra.db.rows.*;
 import org.apache.cassandra.db.view.View;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidRequestException;
+import org.apache.cassandra.service.PendingRangeCalculatorService;
 import org.apache.cassandra.transport.Server;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -1387,6 +1388,14 @@ public final class SchemaKeyspace
         // updated keyspaces
         for (Map.Entry<String, MapDifference.ValueDifference<KeyspaceMetadata>> diff : keyspacesDiff.entriesDiffering().entrySet())
             updateKeyspace(diff.getKey(), diff.getValue().leftValue(), diff.getValue().rightValue());
+
+        // If keyspace definitions have been changed/added/deleted, we need to recalculate pending ranges to make sure
+        // we send / dont send mutations to the correct set of bootstrapping nodes. Refer CASSANDRA-15433.
+        if (!keyspacesDiff.areEqual())
+        {
+            PendingRangeCalculatorService.instance.update();
+            PendingRangeCalculatorService.instance.blockUntilFinished();
+        }
     }
 
     private static void updateKeyspace(String keyspaceName, KeyspaceMetadata keyspaceBefore, KeyspaceMetadata keyspaceAfter)
