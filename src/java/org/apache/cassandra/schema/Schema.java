@@ -43,6 +43,7 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.locator.LocalStrategy;
 import org.apache.cassandra.schema.KeyspaceMetadata.KeyspaceDiff;
 import org.apache.cassandra.schema.Keyspaces.KeyspacesDiff;
+import org.apache.cassandra.service.PendingRangeCalculatorService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.Pair;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
@@ -663,6 +664,14 @@ public final class Schema
         diff.dropped.forEach(this::dropKeyspace);
         diff.created.forEach(this::createKeyspace);
         diff.altered.forEach(this::alterKeyspace);
+
+        // If keyspace definitions have been changed/added/deleted, we need to recalculate pending ranges to make sure
+        // we send/ dont send mutations to the correct set of bootstrapping nodes. Refer CASSANDRA-15433.
+        if (!diff.isEmpty())
+        {
+            PendingRangeCalculatorService.instance.update();
+            PendingRangeCalculatorService.instance.blockUntilFinished();
+        }
     }
 
     private void alterKeyspace(KeyspaceDiff delta)
