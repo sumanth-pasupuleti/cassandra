@@ -43,6 +43,7 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.locator.LocalStrategy;
 import org.apache.cassandra.schema.KeyspaceMetadata.KeyspaceDiff;
 import org.apache.cassandra.schema.Keyspaces.KeyspacesDiff;
+import org.apache.cassandra.service.PendingRangeCalculatorService;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.utils.Pair;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
@@ -724,6 +725,13 @@ public final class Schema
         keyspace.functions.udfs().forEach(this::notifyCreateFunction);
         keyspace.functions.udas().forEach(this::notifyCreateAggregate);
         SchemaDiagnostics.keyspaceCreated(this, keyspace);
+
+        // If keyspace has been added, we need to recalculate pending ranges to make sure
+        // we send mutations to the correct set of bootstrapping nodes. Refer CASSANDRA-15433.
+        if (keyspace.params.replication.klass != LocalStrategy.class)
+        {
+            PendingRangeCalculatorService.calculatePendingRanges(Keyspace.open(keyspace.name).getReplicationStrategy(), keyspace.name);
+        }
     }
 
     private void dropKeyspace(KeyspaceMetadata keyspace)
