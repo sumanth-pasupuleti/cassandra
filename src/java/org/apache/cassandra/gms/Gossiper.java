@@ -29,6 +29,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import com.google.common.util.concurrent.Uninterruptibles;
 
@@ -891,6 +892,11 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     public EndpointState getEndpointStateForEndpoint(InetAddress ep)
     {
         return endpointStateMap.get(ep);
+    }
+
+    public ImmutableSet<InetAddress> getEndpoints()
+    {
+        return ImmutableSet.copyOf(endpointStateMap.keySet());
     }
 
     public boolean valuesEqual(InetAddress ep1, InetAddress ep2, ApplicationState as)

@@ -2164,4 +2164,14 @@ public class DatabaseDescriptor
     {
         return strictRuntimeChecks;
     }
+
+    public static boolean getBlockForPeersInRemoteDatacenters()
+    {
+        return conf.block_for_peers_in_remote_dcs;
+    }
+
+    public static int getBlockForPeersTimeoutInSeconds()
+    {
+        return conf.block_for_peers_timeout_in_secs;
+    }
 }
