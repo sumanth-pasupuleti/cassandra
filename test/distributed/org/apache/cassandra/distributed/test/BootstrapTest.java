@@ -25,6 +25,9 @@ import java.util.stream.IntStream;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.distributed.Cluster;
 import org.apache.cassandra.distributed.api.IInstance;
@@ -37,6 +40,7 @@ import static org.apache.cassandra.distributed.api.Feature.NETWORK;
 
 public class BootstrapTest extends DistributedTestBase
 {
+    private static final Logger logger = LoggerFactory.getLogger(BootstrapTest.class);
 
     @Test
     public void bootstrapTest() throws Throwable
@@ -60,8 +64,41 @@ public class BootstrapTest extends DistributedTestBase
             config.set("auto_bootstrap", true);
 
             IInstance newInstance = cluster.bootstrap(config);
-            newInstance.startup();
 
+            new Thread(new Runnable() {
+
+                public void run() {
+                    try
+                    {
+                        logger.info("Hello from thread");
+//                        Thread.sleep(Long.parseLong(System.getProperty("cassandra.ring_delay_ms")));
+                        Thread.sleep(20000);
+                        logger.info("creating ks2");
+
+//                        cluster.schemaChange("CREATE KEYSPACE " + KEYSPACE + '2' + " WITH replication = {'class': 'NetworkTopologyStrategy', 'dc0': '3'};");
+//                        cluster.schemaChange("CREATE TABLE " + KEYSPACE + '2' + ".tbl (pk int, ck int, v int, PRIMARY KEY (pk, ck))");
+                        String newKeySpace = "distributed_test_keyspace2";
+                        cluster.coordinator(1).execute("CREATE KEYSPACE " + newKeySpace + " WITH replication = {'class': 'NetworkTopologyStrategy', 'dc0': '3'};", ConsistencyLevel.LOCAL_ONE);
+                        cluster.coordinator(1).execute("CREATE TABLE " + newKeySpace + ".tbl (pk int, ck int, v int, PRIMARY KEY (pk, ck))", ConsistencyLevel.LOCAL_ONE);
+
+                        logger.info("starting mutations for ks2");
+                        for (int i = 0; i < 1000; i++)
+                            cluster.coordinator(1).execute("INSERT INTO " + newKeySpace + ".tbl (pk, ck, v) VALUES (?, ?, ?)",
+                                                           ConsistencyLevel.QUORUM,
+                                                           i, i, i);
+
+                        logger.info("done with mutations for ks2");
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                }
+            }).start();
+
+            logger.info("hello from main 1");
+            newInstance.startup();
+            logger.info("hello from main 2");
             cluster.stream().forEach(instance -> {
                 instance.nodetool("cleanup", KEYSPACE, "tbl");
             });
