@@ -44,6 +44,7 @@ import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
 import org.apache.cassandra.io.util.WrappedDataOutputStreamPlus;
 import org.apache.cassandra.net.IncomingStreamingConnection;
 import org.apache.cassandra.streaming.messages.StreamInitMessage;
+import org.apache.cassandra.streaming.messages.StreamInitMessageOld;
 import org.apache.cassandra.streaming.messages.StreamMessage;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
@@ -191,18 +192,27 @@ public class ConnectionHandler
         @SuppressWarnings("resource")
         public void sendInitMessage() throws IOException
         {
-            StreamInitMessage message = new StreamInitMessage(
+//            StreamInitMessage message = new StreamInitMessage(
+//                    FBUtilities.getBroadcastAddress(),
+//                    session.sessionIndex(),
+//                    session.planId(),
+//                    session.description(),
+//                    !isOutgoingHandler,
+//                    session.keepSSTableLevel(),
+//                    session.isIncremental());
+
+            StreamInitMessageOld message = new StreamInitMessageOld(
                     FBUtilities.getBroadcastAddress(),
                     session.sessionIndex(),
                     session.planId(),
                     session.description(),
-                    !isOutgoingHandler,
-                    session.keepSSTableLevel(),
-                    session.isIncremental());
+                    !isOutgoingHandler);
             ByteBuffer messageBuf = message.createMessage(false, protocolVersion);
-            DataOutputStreamPlus out = getWriteChannel(socket);
-            out.write(messageBuf);
-            out.flush();
+//            DataOutputStreamPlus out = getWriteChannel(socket);
+//            out.write(messageBuf);
+//            out.flush();
+
+            getWriteChannel(socket).write(messageBuf);
         }
 
         public void start(IncomingStreamingConnection connection, int protocolVersion) throws IOException
