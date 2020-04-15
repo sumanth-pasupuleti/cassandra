@@ -1,4 +1,5 @@
 4.0-alpha4
+ * Upgrade dropwizard libs to fix read failure due to exception from metrics-core dependency (CASSANDRA-15472)
  * Fix regression with traceOutgoingMessage printing message size (CASSANDRA-15687)
  * Ensure repaired data tracking reads a consistent amount of data across replicas (CASSANDRA-15601)
  * Fix CQLSH to avoid arguments being evaluated (CASSANDRA-15660)
