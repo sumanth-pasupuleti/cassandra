@@ -1,4 +1,5 @@
 3.11.7
+ * Upgrade dropwizard libs to fix read failure due to exception from metrics-core dependency (CASSANDRA-15472)
  * Allow sstableloader to use SSL on the native port (CASSANDRA-14904)
 Merged from 3.0:
 =======
