@@ -129,6 +129,9 @@ Merged from 2.1:
  * Ensure repaired data tracking reads a consistent amount of data across replicas (CASSANDRA-15601)
  * Fix CQLSH to avoid arguments being evaluated (CASSANDRA-15660)
  * Correct Visibility and Improve Safety of Methods in LatencyMetrics (CASSANDRA-15597)
+=======
+4.0-alpha4
+ * Upgrade dropwizard libs to fix read failure due to exception from metrics-core dependency (CASSANDRA-15472)
  * Allow cqlsh to run with Python2.7/Python3.6+ (CASSANDRA-15659,CASSANDRA-15573)
  * Improve logging around incremental repair (CASSANDRA-15599)
  * Do not check cdc_raw_directory filesystem space if CDC disabled (CASSANDRA-15688)
