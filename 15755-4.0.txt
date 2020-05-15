@@ -1,0 +1,42 @@
+From 1095937d1c658ec1c27141863dcd4f4b275ef812 Mon Sep 17 00:00:00 2001
+From: Sumanth Pasupuleti <spasupuleti.pasupuleti.is@gmail.com>
+Date: Thu, 23 Apr 2020 17:18:03 -0700
+Subject: [PATCH] Adding debug logging to indicate missing summary component
+ file and when building summary
+
+Patch by Sumanth Pasupuleti; Reviewed by Dinesh Joshi for CASSANDRA-15755
+---
+ .../apache/cassandra/io/sstable/format/SSTableReader.java | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java b/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
+index cff6042de0..232fe6bbc8 100644
+--- a/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
++++ b/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
+@@ -846,9 +846,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
+      */
+     private void buildSummary(boolean recreateBloomFilter, boolean summaryLoaded, int samplingLevel) throws IOException
+     {
+-         if (!components.contains(Component.PRIMARY_INDEX))
+-             return;
++        if (!components.contains(Component.PRIMARY_INDEX))
++            return;
+ 
++        logger.debug("Attempting to build summary for {}", descriptor);
+         // we read the positions in a BRAF so we don't have to worry about an entry spanning a mmap boundary.
+         try (RandomAccessReader primaryIndex = RandomAccessReader.open(new File(descriptor.filenameFor(Component.PRIMARY_INDEX))))
+         {
+@@ -906,7 +907,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
+     {
+         File summariesFile = new File(descriptor.filenameFor(Component.SUMMARY));
+         if (!summariesFile.exists())
++        {
++            logger.debug("SSTable Summary File {} does not exist", summariesFile.getAbsolutePath());
+             return false;
++        }
+ 
+         DataInputStream iStream = null;
+         try
+-- 
+2.21.1 (Apple Git-122.3)
+
