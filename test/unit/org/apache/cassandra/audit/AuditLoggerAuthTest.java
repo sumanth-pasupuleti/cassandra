@@ -216,7 +216,7 @@ public class AuditLoggerAuthTest
         try (Cluster cluster = Cluster.builder().addContactPoints(InetAddress.getLoopbackAddress())
                                       .withoutJMXReporting()
                                       .withCredentials(username, password)
-                                      .withPort(DatabaseDescriptor.getNativeTransportPort()).build())
+                                      .withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build())
         {
             try (Session session = cluster.connect())
             {
