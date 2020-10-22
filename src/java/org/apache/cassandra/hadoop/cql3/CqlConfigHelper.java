@@ -342,7 +342,7 @@ public class CqlConfigHelper
                 .withQueryOptions(queryOptions)
                 .withPoolingOptions(poolingOptions);
 
-        return builder.build();
+        return builder.withoutJMXReporting().build();
     }
 
     public static void setInputCoreConnections(Configuration conf, String connections)
