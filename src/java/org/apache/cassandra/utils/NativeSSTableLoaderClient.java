@@ -40,6 +40,8 @@ import org.apache.cassandra.schema.CQLTypeParser;
 import org.apache.cassandra.schema.SchemaKeyspace;
 import org.apache.cassandra.schema.Types;
 
+import com.codahale.metrics.jmx.JmxReporter;
+
 public class NativeSSTableLoaderClient extends SSTableLoader.Client
 {
     protected final Map<String, TableMetadataRef> tables;
@@ -74,6 +76,12 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
 
         try (Cluster cluster = builder.withoutJMXReporting().build(); Session session = cluster.connect())
         {
+            JmxReporter reporter =
+            JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                       .inDomain(cluster.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
             Metadata metadata = cluster.getMetadata();
 
             Set<TokenRange> tokenRanges = metadata.getTokenRanges();

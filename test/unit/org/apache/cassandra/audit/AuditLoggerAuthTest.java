@@ -29,6 +29,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.AuthenticationException;
@@ -218,6 +219,13 @@ public class AuditLoggerAuthTest
                                       .withCredentials(username, password)
                                       .withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build())
         {
+            JmxReporter reporter =
+            JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                       .inDomain(cluster.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
+
             try (Session session = cluster.connect())
             {
                 for (String query : queries)

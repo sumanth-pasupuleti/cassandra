@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.cql3;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
@@ -48,6 +49,13 @@ public class BatchTests extends  CQLTester
         cassandra.start();
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
+
         session = cluster.connect();
 
         session.execute("drop keyspace if exists junit;");

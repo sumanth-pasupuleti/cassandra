@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
@@ -226,6 +227,12 @@ public class PreparedStatementsTest extends CQLTester
                                  .allowBetaProtocolVersion()
                                  .build())
         {
+            JmxReporter reporter =
+            JmxReporter.forRegistry(newCluster.getMetrics().getRegistry())
+                       .inDomain(newCluster.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
             try (Session newSession = newCluster.connect())
             {
                 newSession.execute("USE " + keyspace());

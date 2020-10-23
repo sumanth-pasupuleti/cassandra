@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
@@ -251,6 +252,12 @@ public class QueryReplayer implements Closeable
             if (pth.user != null)
                 builder.withCredentials(pth.user, pth.password);
             Cluster c = builder.withoutJMXReporting().build();
+            JmxReporter reporter =
+            JmxReporter.forRegistry(c.getMetrics().getRegistry())
+                       .inDomain(c.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
             sessionCache.put(connectionString, c.connect());
             return sessionCache.get(connectionString);
         }

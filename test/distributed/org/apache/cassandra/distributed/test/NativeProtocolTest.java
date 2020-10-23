@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.distributed.test;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import org.apache.cassandra.distributed.impl.RowUtil;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,6 +50,12 @@ public class NativeProtocolTest extends TestBaseImpl
             try (com.datastax.driver.core.Cluster cluster = com.datastax.driver.core.Cluster.builder().addContactPoint("127.0.0.1").withoutJMXReporting().build();
                  Session session = cluster.connect())
             {
+                JmxReporter reporter =
+                JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                           .inDomain(cluster.getClusterName() + "-metrics")
+                           .build();
+
+                reporter.start();
                 session.execute("CREATE TABLE " + KEYSPACE + ".tbl (pk int, ck int, v int, PRIMARY KEY (pk, ck));");
                 session.execute("INSERT INTO " + KEYSPACE + ".tbl (pk, ck, v) values (1,1,1);");
                 Statement select = new SimpleStatement("select * from " + KEYSPACE + ".tbl;").setConsistencyLevel(ConsistencyLevel.ALL);
@@ -67,6 +74,12 @@ public class NativeProtocolTest extends TestBaseImpl
                                               .start()))
         {
             final com.datastax.driver.core.Cluster cluster = com.datastax.driver.core.Cluster.builder().addContactPoint("127.0.0.1").withoutJMXReporting().build();
+            JmxReporter reporter =
+            JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                       .inDomain(cluster.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
             Session session = cluster.connect();
             session.execute("CREATE TABLE " + KEYSPACE + ".tbl (pk int, ck counter, PRIMARY KEY (pk));");
             session.execute("UPDATE " + KEYSPACE + ".tbl set ck = ck + 10 where pk = 1;");

@@ -25,6 +25,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
@@ -74,7 +75,12 @@ public class BatchMetricsTest extends SchemaLoader
         DatabaseDescriptor.setWriteRpcTimeout(TimeUnit.SECONDS.toMillis(10));
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
 
+        reporter.start();
         session = cluster.connect();
 
         session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH replication = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };");

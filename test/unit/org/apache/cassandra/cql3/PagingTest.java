@@ -25,6 +25,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
@@ -70,6 +71,14 @@ public class PagingTest
                                    .withPort(DatabaseDescriptor.getNativeTransportPort())
                                    .withoutJMXReporting()
                                    .build();
+
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
+
         session = cluster.connect();
 
         session.execute(dropKsStatement);

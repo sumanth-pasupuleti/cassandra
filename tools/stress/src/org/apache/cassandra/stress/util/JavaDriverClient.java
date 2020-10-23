@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.net.ssl.SSLContext;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.LoadBalancingPolicy;
@@ -158,6 +159,12 @@ public class JavaDriverClient
         }
 
         cluster = clusterBuilder.build();
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
         Metadata metadata = cluster.getMetadata();
         System.out.printf(
                 "Connected to cluster: %s, max pending requests per connection %d, max connections per host %d%n",

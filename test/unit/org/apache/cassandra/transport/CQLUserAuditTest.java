@@ -36,6 +36,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
@@ -181,6 +182,12 @@ public class CQLUserAuditTest
                                  .withoutJMXReporting()
                                  .withCredentials("testuser", "foo")
                                  .withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
         String spStmt = "INSERT INTO testks.table1 (a, b, c) VALUES (?, ?, ?)";
         try (Session session = cluster.connect())
         {
@@ -217,6 +224,12 @@ public class CQLUserAuditTest
                                  .withoutJMXReporting()
                                  .withCredentials(username, password)
                                  .withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
         try (Session session = cluster.connect())
         {
             for (String query : queries)

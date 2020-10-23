@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.LoggingRetryPolicy;
 import com.datastax.driver.core.policies.Policies;
@@ -67,6 +68,13 @@ public class CorruptionTest extends SchemaLoader
         cluster = Cluster.builder().addContactPoint("127.0.0.1")
                          .withRetryPolicy(new LoggingRetryPolicy(Policies.defaultRetryPolicy()))
                          .withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
+
+        JmxReporter reporter =
+        JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        reporter.start();
         session = cluster.connect();
 
         session.execute("CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE +" WITH replication " +

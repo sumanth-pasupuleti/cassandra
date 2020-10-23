@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
@@ -43,6 +44,7 @@ public class CQLMetricsTest extends SchemaLoader
     private static EmbeddedCassandraService cassandra;
 
     private static Cluster cluster;
+    private static JmxReporter jmxReporter;
     private static Session session;
 
     @BeforeClass()
@@ -54,6 +56,11 @@ public class CQLMetricsTest extends SchemaLoader
         cassandra.start();
 
         cluster = Cluster.builder().addContactPoint("127.0.0.1").withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
+        jmxReporter = JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                   .inDomain(cluster.getClusterName() + "-metrics")
+                   .build();
+
+        jmxReporter.start();
         session = cluster.connect();
 
         session.execute("CREATE KEYSPACE IF NOT EXISTS junit WITH replication = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };");

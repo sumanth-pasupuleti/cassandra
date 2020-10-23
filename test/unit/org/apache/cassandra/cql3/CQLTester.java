@@ -51,6 +51,7 @@ import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.jmx.JmxReporter;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.ResultSet;
@@ -534,6 +535,12 @@ public abstract class CQLTester
                 builder = builder.withProtocolVersion(com.datastax.driver.core.ProtocolVersion.fromInt(version.asInt()));
 
             Cluster cluster = builder.build();
+            JmxReporter reporter =
+            JmxReporter.forRegistry(cluster.getMetrics().getRegistry())
+                       .inDomain(cluster.getClusterName() + "-metrics")
+                       .build();
+
+            reporter.start();
             clusters.put(version, cluster);
             sessions.put(version, cluster.connect());
 
