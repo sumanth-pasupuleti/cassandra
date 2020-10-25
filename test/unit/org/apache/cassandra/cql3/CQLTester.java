@@ -533,7 +533,7 @@ public abstract class CQLTester
             else
                 builder = builder.withProtocolVersion(com.datastax.driver.core.ProtocolVersion.fromInt(version.asInt()));
 
-            Cluster cluster = builder.build();
+            Cluster cluster = builder.withoutJMXReporting().build();
             clusters.put(version, cluster);
             sessions.put(version, cluster.connect());
 

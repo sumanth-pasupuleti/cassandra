@@ -157,7 +157,7 @@ public class JavaDriverClient
             clusterBuilder.withCredentials(username, password);
         }
 
-        cluster = clusterBuilder.build();
+        cluster = clusterBuilder.withoutJMXReporting().build();
         Metadata metadata = cluster.getMetadata();
         System.out.printf(
                 "Connected to cluster: %s, max pending requests per connection %d, max connections per host %d%n",

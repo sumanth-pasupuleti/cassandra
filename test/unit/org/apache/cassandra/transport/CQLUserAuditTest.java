@@ -180,7 +180,7 @@ public class CQLUserAuditTest
         Cluster cluster = Cluster.builder().addContactPoints(InetAddress.getLoopbackAddress())
                                  .withoutJMXReporting()
                                  .withCredentials("testuser", "foo")
-                                 .withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+                                 .withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
         String spStmt = "INSERT INTO testks.table1 (a, b, c) VALUES (?, ?, ?)";
         try (Session session = cluster.connect())
         {
@@ -216,7 +216,7 @@ public class CQLUserAuditTest
         Cluster cluster = Cluster.builder().addContactPoints(InetAddress.getLoopbackAddress())
                                  .withoutJMXReporting()
                                  .withCredentials(username, password)
-                                 .withPort(DatabaseDescriptor.getNativeTransportPort()).build();
+                                 .withPort(DatabaseDescriptor.getNativeTransportPort()).withoutJMXReporting().build();
         try (Session session = cluster.connect())
         {
             for (String query : queries)

@@ -73,7 +73,7 @@ public class PagingTest extends UpgradeTestBase
                                                                                   .addContactPoint("127.0.0.1")
                                                                                   .withProtocolVersion(ProtocolVersion.V3)
                                                                                   .withQueryOptions(new QueryOptions().setFetchSize(101))
-                                                                                  .build();
+                                                                                  .withoutJMXReporting().build();
              Session s = c.connect())
         {
             Statement stmt = new SimpleStatement("select distinct token(pk) from " + DistributedTestBase.KEYSPACE + ".tbl WHERE token(pk) > " + Long.MIN_VALUE + " AND token(pk) < " + Long.MAX_VALUE);

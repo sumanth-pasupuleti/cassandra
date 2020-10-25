@@ -72,7 +72,7 @@ public class NativeSSTableLoaderClient extends SSTableLoader.Client
         if (authProvider != null)
             builder = builder.withAuthProvider(authProvider);
 
-        try (Cluster cluster = builder.build(); Session session = cluster.connect())
+        try (Cluster cluster = builder.withoutJMXReporting().build(); Session session = cluster.connect())
         {
 
             Metadata metadata = cluster.getMetadata();
