@@ -32,6 +32,7 @@ import com.google.common.primitives.Ints;
 import org.junit.*;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.CQLTester;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -46,6 +47,7 @@ import org.apache.cassandra.transport.messages.QueryMessage;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.apache.cassandra.Util.spinAssertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -165,19 +167,26 @@ public class ClientResourceLimitsTest extends CQLTester
     @Test
     public void testBackpressureOnGlobalLimitExceeded() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Bump the per-endpoint limit to make sure we exhaust the global
         ClientResourceLimits.setEndpointLimit(HIGH_LIMIT);
         backPressureTest(() -> ClientResourceLimits.setGlobalLimit(HIGH_LIMIT),
                          (provider) -> provider.globalWaitQueue().signal());
+        assertEquals(requestsDiscardedCountAtStart, requestsDiscarded.getCount());
     }
 
     @Test
     public void testBackPressureWhenEndpointLimitExceeded() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Make sure we can only exceed the per-endpoint limit
         ClientResourceLimits.setGlobalLimit(HIGH_LIMIT);
         backPressureTest(() -> ClientResourceLimits.setEndpointLimit(HIGH_LIMIT),
                          (provider) -> provider.endpointWaitQueue().signal());
+
+        assertEquals(requestsDiscardedCountAtStart, requestsDiscarded.getCount());
     }
 
     private void backPressureTest(Runnable limitLifter, Consumer<ClientResourceLimits.ResourceProvider> signaller)
@@ -241,33 +250,45 @@ public class ClientResourceLimitsTest extends CQLTester
     @Test
     public void testOverloadedExceptionWhenGlobalLimitExceeded() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Bump the per-endpoint limit to make sure we exhaust the global
         ClientResourceLimits.setEndpointLimit(HIGH_LIMIT);
         testOverloadedException(() -> client(true));
+        assertEquals(1, requestsDiscarded.getCount() - requestsDiscardedCountAtStart);
     }
 
     @Test
     public void testOverloadedExceptionWhenEndpointLimitExceeded() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Make sure we can only exceed the per-endpoint limit
         ClientResourceLimits.setGlobalLimit(HIGH_LIMIT);
         testOverloadedException(() -> client(true));
+        assertEquals(1, requestsDiscarded.getCount() - requestsDiscardedCountAtStart);
     }
 
     @Test
     public void testOverloadedExceptionWhenGlobalLimitByMultiFrameMessage() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Bump the per-endpoint limit to make sure we exhaust the global
         ClientResourceLimits.setEndpointLimit(HIGH_LIMIT);
         testOverloadedException(() -> client(true, Ints.checkedCast(LOW_LIMIT / 2)));
+        assertEquals(1, requestsDiscarded.getCount() - requestsDiscardedCountAtStart);
     }
 
     @Test
     public void testOverloadedExceptionWhenEndpointLimitByMultiFrameMessage() throws Throwable
     {
+        Meter requestsDiscarded = getRequestDiscardedMeter();
+        long requestsDiscardedCountAtStart = requestsDiscarded.getCount();
         // Make sure we can only exceed the per-endpoint limit
         ClientResourceLimits.setGlobalLimit(HIGH_LIMIT);
         testOverloadedException(() -> client(true, Ints.checkedCast(LOW_LIMIT / 2)));
+        assertEquals(1, requestsDiscarded.getCount() - requestsDiscardedCountAtStart);
     }
 
     private void testOverloadedException(Supplier<SimpleClient> clientSupplier)
@@ -307,6 +328,16 @@ public class ClientResourceLimitsTest extends CQLTester
         Map<String, Gauge> metrics = CassandraMetricsRegistry.Metrics.getGauges((name, metric) -> name.equals(metricName));
         if (metrics.size() != 1)
             fail(String.format("Expected a single registered metric for paused client connections, found %s",
+                               metrics.size()));
+        return metrics.get(metricName);
+    }
+
+    private Meter getRequestDiscardedMeter()
+    {
+        String metricName = "org.apache.cassandra.metrics.Client.RequestDiscarded";
+        Map<String, Meter> metrics = CassandraMetricsRegistry.Metrics.getMeters((name, metric) -> name.equals(metricName));
+        if (metrics.size() != 1)
+            fail(String.format("Expected a single registered metric for request discarded, found %s",
                                metrics.size()));
         return metrics.get(metricName);
     }
