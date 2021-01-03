@@ -240,6 +240,59 @@ public class TableMetricsTest extends SchemaLoader
     }
 
     @Test
+    public void testWriteMetrics()
+    {
+        ColumnFamilyStore cfs = recreateTable();
+
+        assertEquals(0, cfs.metric.writeLatency.totalLatency.getCount());
+        assertEquals(0, cfs.metric.coordinatorWriteLatency.getCount());
+        assertEquals(0, (long) cfs.metric.memtableLiveDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.memtableOffHeapDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.memtableOnHeapDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.allMemtablesLiveDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.allMemtablesOffHeapDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.allMemtablesOnHeapDataSize.getValue());
+        assertEquals(0, (long) cfs.metric.memtableColumnsCount.getValue());
+
+        session.execute(String.format("INSERT INTO %s.%s (id, val1, val2) VALUES (1, 'val1', 'val1')", KEYSPACE, TABLE));
+        assertTrue(cfs.metric.writeLatency.totalLatency.getCount() > 0);
+        assertTrue(cfs.metric.coordinatorWriteLatency.getCount() > 0);
+        assertTrue(cfs.metric.memtableLiveDataSize.getValue() > 0);
+        assertTrue(cfs.metric.memtableOffHeapDataSize.getValue() > 0);
+        assertTrue(cfs.metric.memtableOnHeapDataSize.getValue() > 0);
+        assertTrue(cfs.metric.allMemtablesLiveDataSize.getValue() > 0);
+        assertTrue(cfs.metric.allMemtablesOffHeapDataSize.getValue() > 0);
+        assertTrue(cfs.metric.allMemtablesOnHeapDataSize.getValue() > 0);
+        assertTrue(cfs.metric.memtableColumnsCount.getValue() > 0);
+
+        // cas metrics
+        assertEquals(0, (long) cfs.metric.casPrepare.totalLatency.getCount());
+        assertEquals(0, (long) cfs.metric.casPropose.totalLatency.getCount());
+        assertEquals(0, (long) cfs.metric.casCommit.totalLatency.getCount());
+        session.execute(String.format("INSERT INTO %s.%s (id, val1, val2) VALUES (1, 'val1', 'val1') IF NOT EXISTS", KEYSPACE, TABLE));
+        assertTrue((long) cfs.metric.casPrepare.totalLatency.getCount() > 0);
+        assertTrue((long) cfs.metric.casPropose.totalLatency.getCount() > 0);
+        assertEquals(0, (long) cfs.metric.casCommit.totalLatency.getCount());
+        session.execute(String.format("INSERT INTO %s.%s (id, val1, val2) VALUES (2, 'val1', 'val1') IF NOT EXISTS", KEYSPACE, TABLE));
+        assertTrue((long) cfs.metric.casCommit.totalLatency.getCount() > 0);
+    }
+
+    @Test
+    public void testReadMetrics()
+    {
+        ColumnFamilyStore cfs = recreateTable();
+
+        assertEquals(0, cfs.metric.readLatency.totalLatency.getCount());
+        assertEquals(0, cfs.metric.coordinatorReadLatency.getCount());
+        assertEquals(0, cfs.metric.sstablesPerReadHistogram.cf.getCount());
+
+        session.execute(String.format("SELECT * FROM %s.%s WHERE id = 1 AND val1 = 'val1'", KEYSPACE, TABLE));
+        assertTrue(cfs.metric.readLatency.totalLatency.getCount() > 0);
+        assertTrue(cfs.metric.coordinatorReadLatency.getCount() > 0);
+        assertEquals(1, cfs.metric.sstablesPerReadHistogram.cf.getCount());
+    }
+
+    @Test
     public void testMetricsCleanupOnDrop()
     {
         String tableName = TABLE + "_metrics_cleanup";
