@@ -126,6 +126,11 @@ public final class ClientMetrics
 
         for (Server server : servers)
         {
+            // Example of how we can invalidate cache across all the existing connections. This should not be here, but in a new clas
+            // that also has pointer to "servers"
+            for (ConnectedClient client : server.getConnectedClients()) {
+                client.state().getUser().invalidatePermissionsCache();
+            }
             server.countConnectedClientsByUser()
                   .forEach((username, count) -> counts.put(username, counts.getOrDefault(username, 0) + count));
         }

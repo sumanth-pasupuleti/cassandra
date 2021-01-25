@@ -116,7 +116,7 @@ public final class ConnectedClient
              : Optional.empty();
     }
 
-    private ClientState state()
+    public ClientState state()
     {
         return connection.getClientState();
     }

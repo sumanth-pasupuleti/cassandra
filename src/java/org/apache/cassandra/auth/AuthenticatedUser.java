@@ -116,6 +116,11 @@ public class AuthenticatedUser
         return permissionsCache.getPermissions(this, resource);
     }
 
+    public void invalidatePermissionsCache()
+    {
+        permissionsCache.invalidate();
+    }
+
     /**
      * Check whether this user has login privileges.
      * LOGIN is not inherited from granted roles, so must be directly granted to the primary role for this user
