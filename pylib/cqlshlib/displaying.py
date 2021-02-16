@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import unicode_literals
+
 from collections import defaultdict
 
 RED = '\033[0;1;31m'
@@ -41,7 +43,7 @@ def get_str(val):
     return val
 
 
-class FormattedValue:
+class FormattedValue(object):
 
     def __init__(self, strval, coloredval=None, displaywidth=None):
         self.strval = strval
@@ -114,6 +116,7 @@ DEFAULT_VALUE_COLORS = dict(
     inet=GREEN,
     boolean=GREEN,
     uuid=GREEN,
+    duration=GREEN,
     collection=BLUE,
     reset=ANSI_RESET,
 )
