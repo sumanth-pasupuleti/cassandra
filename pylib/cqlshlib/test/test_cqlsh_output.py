@@ -47,7 +47,7 @@ class TestCqlshOutput(BaseTestCase):
         remove_db()
 
     def setUp(self):
-        env = os.environ.copy()
+        env = os.environ
         env['COLUMNS'] = '100000'
         # carry forward or override locale LC_CTYPE for UTF-8 encoding
         if (locale.getpreferredencoding() != 'UTF-8'):
@@ -737,7 +737,7 @@ class TestCqlshOutput(BaseTestCase):
         ringinfo_re = r'''
             Range[ ]ownership: \n
             (
-              [ ] .*? [ ][ ] \[ .*? / ( \d+ \. ){3} \d+ : \d+ \] \n
+              [ ] .*? [ ][ ] \[ / ( \d+ \. ){3} \d+ : \d+ \] \n
             )+
             \n
         '''
@@ -910,13 +910,3 @@ class TestCqlshOutput(BaseTestCase):
             nnnnnnnn
             """),
         ))
-
-    def test_expanded_output_counts_past_page(self):
-        query = "PAGING 5; EXPAND ON; SELECT * FROM twenty_rows_table;"
-        output, result = testcall_cqlsh(prompt=None, env=self.default_env,
-                                        tty=False, input=query)
-        self.assertEqual(0, result)
-        # format is "@ Row 1"
-        row_headers = [s for s in output.splitlines() if "@ Row" in s]
-        row_ids = [int(s.split(' ')[2]) for s in row_headers]
-        self.assertEqual([i for i in range(1, 21)], row_ids)
