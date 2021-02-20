@@ -18,88 +18,57 @@
 
 package org.apache.cassandra.schema;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import org.apache.cassandra.exceptions.ConfigurationException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Enclosed.class)
 public class SpeculativeRetryParamParseTest
 {
 
-    @RunWith(Parameterized.class)
-    public static class SuccessfulParseTest
+    @Test
+    public void successfulParsetest()
     {
-        private final String string;
-        private final SpeculativeRetryParam expectedValue;
-
-        public SuccessfulParseTest(String string, SpeculativeRetryParam expectedValue)
-        {
-            this.string = string;
-            this.expectedValue = expectedValue;
-        }
-
-        @Parameters
-        public static Collection<Object[]> generateData()
-        {
-            return Arrays.asList(new Object[][]{
-                                 { "NONE", SpeculativeRetryParam.none() },
-                                 { "ALWAYS", SpeculativeRetryParam.always() },
-                                 { "10PERCENTILE", SpeculativeRetryParam.percentile(10.0) },
-                                 { "121.1ms", SpeculativeRetryParam.custom(121.1) },
-                                 { "21.7MS", SpeculativeRetryParam.custom(21.7) },
-                                 { "None", SpeculativeRetryParam.none() },
-                                 { "none", SpeculativeRetryParam.none() },
-                                 { "Always", SpeculativeRetryParam.always() },
-                                 { "always", SpeculativeRetryParam.always() },
-                                 { "21.1percentile", SpeculativeRetryParam.percentile(21.1) },
-                                 }
-            );
-        }
-
-        @Test
-        public void testParameterParse()
-        {
-            assertEquals(expectedValue, SpeculativeRetryParam.fromString(string));
-        }
+        assertEquals(SpeculativeRetryParam.none(), SpeculativeRetryParam.fromString("NONE"));
+        assertEquals(SpeculativeRetryParam.none(), SpeculativeRetryParam.fromString("None"));
+        assertEquals(SpeculativeRetryParam.none(), SpeculativeRetryParam.fromString("none"));
+        assertEquals(SpeculativeRetryParam.always(), SpeculativeRetryParam.fromString("ALWAYS"));
+        assertEquals(SpeculativeRetryParam.always(), SpeculativeRetryParam.fromString("Always"));
+        assertEquals(SpeculativeRetryParam.always(), SpeculativeRetryParam.fromString("always"));
+        assertEquals(SpeculativeRetryParam.custom(121.1), SpeculativeRetryParam.fromString("121.1ms"));
+        assertEquals(SpeculativeRetryParam.custom(21.7), SpeculativeRetryParam.fromString("21.7MS"));
+        assertEquals(SpeculativeRetryParam.percentile(21.1), SpeculativeRetryParam.fromString("21.1percentile"));
+        assertEquals(SpeculativeRetryParam.percentile(10.0), SpeculativeRetryParam.fromString("10PERCENTILE"));
     }
 
-    @RunWith(Parameterized.class)
-    public static class FailedParseTest
+    @Test(expected = ConfigurationException.class)
+    public void failedParsetestForEmptyValue()
     {
-        private final String string;
+        SpeculativeRetryParam.fromString("");
+    }
 
-        public FailedParseTest(String string)
-        {
-            this.string = string;
-        }
+    @Test(expected = ConfigurationException.class)
+    public void failedParsetestForNegativePercentile()
+    {
+        SpeculativeRetryParam.fromString("-0.1PERCENTILE");
+    }
 
-        @Parameters
-        public static Collection<Object[]> generateData()
-        {
-            return Arrays.asList(new Object[][]{
-                                 { "" },
-                                 { "-0.1PERCENTILE" },
-                                 { "100.1PERCENTILE" },
-                                 { "xPERCENTILE" },
-                                 { "xyzms" },
-                                 { "X" }
-                                 }
-            );
-        }
+    @Test(expected = ConfigurationException.class)
+    public void failedParsetestForOver100Percentile()
+    {
+        SpeculativeRetryParam.fromString("100.1PERCENTILE");
+    }
 
-        @Test(expected = ConfigurationException.class)
-        public void testParameterParse()
-        {
-            SpeculativeRetryParam.fromString(string);
-        }
+    @Test(expected = ConfigurationException.class)
+    public void failedParsetestForInvalidString()
+    {
+        SpeculativeRetryParam.fromString("xyzms");
+    }
+
+    @Test(expected = ConfigurationException.class)
+    public void failedParsetestForShortFormPercentilie()
+    {
+        SpeculativeRetryParam.fromString("21.7p");
     }
 }
